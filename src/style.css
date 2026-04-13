@@ -67,6 +67,16 @@ html, body {
   margin: 0 8px;
 }
 
+#toolbar .toolbar-spacer {
+  flex: 1;
+}
+
+#toolbar .toolbar-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
 #toolbar button {
   padding: 4px 10px;
   font-size: 12px;
@@ -92,6 +102,23 @@ html, body {
 
 #toolbar button.active:hover {
   background: var(--accent-hover);
+}
+
+#toolbar button.btn-secondary {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+#toolbar button.btn-secondary:hover {
+  background: #e8e8e8;
+  color: var(--text-primary);
+}
+
+#toolbar .export-group {
+  gap: 2px;
 }
 
 /* Main layout */
@@ -265,6 +292,42 @@ html, body {
   cursor: grabbing;
 }
 
+/* Zoom controls */
+.zoom-controls {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  user-select: none;
+}
+
+.zoom-btn:hover {
+  background: #f0f0f0;
+}
+
+.zoom-btn:last-child {
+  font-size: 11px;
+}
+
 /* Status message */
 .viewer-message {
   position: absolute;
@@ -318,13 +381,21 @@ html, body {
 
 /* Responsive */
 @media (max-width: 768px) {
+  #toolbar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #toolbar .toolbar-spacer {
+    flex: 0;
+    min-width: 8px;
+  }
   #main {
     flex-direction: column;
   }
   #sidebar {
     width: 100%;
     min-width: 100%;
-    max-height: 40vh;
+    max-height: 35vh;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
   }

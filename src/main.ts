@@ -34,6 +34,30 @@ function init(): void {
     }, 150);
   });
   ro.observe(viewer);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd+Enter to render
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      const ta1 = document.getElementById('newick-input-1') as HTMLTextAreaElement;
+      if (ta1) {
+        state.newick1 = ta1.value.trim();
+        if (state.tanglegram) {
+          const ta2 = document.getElementById('newick-input-2') as HTMLTextAreaElement;
+          state.newick2 = ta2?.value.trim() ?? '';
+        }
+        renderTree();
+      }
+    }
+    // Ctrl/Cmd+0 to fit to view
+    if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+      e.preventDefault();
+      if (currentRenderer && currentRenderer.getCurrentLayout()) {
+        currentRenderer.fitToView(currentRenderer.getCurrentLayout()!);
+      }
+    }
+  });
 }
 
 function showPlaceholderIfEmpty(): void {
@@ -49,6 +73,7 @@ function showPlaceholderIfEmpty(): void {
     msg.innerHTML = `
       <div>Paste a Newick tree in the sidebar to get started</div>
       <div class="hint">Or click "Load example" for a demo</div>
+      <div class="hint" style="margin-top: 16px; font-size: 11px; color: #bbb;">Scroll to zoom &middot; Drag to pan &middot; Ctrl+Enter to render</div>
     `;
     viewer.appendChild(msg);
   }
@@ -128,7 +153,7 @@ function buildToolbar(): void {
   title.textContent = 'Newick Viewer';
   toolbar.appendChild(title);
 
-  // Layout toggle
+  // Layout toggle group (primary actions)
   const layoutGroup = document.createElement('div');
   layoutGroup.className = 'toolbar-group';
 
@@ -167,38 +192,53 @@ function buildToolbar(): void {
   });
   toolbar.appendChild(btnTangle);
 
-  addSeparator(toolbar);
+  // Spacer pushes export actions to the right
+  const spacer = document.createElement('div');
+  spacer.className = 'toolbar-spacer';
+  toolbar.appendChild(spacer);
 
-  // Export group
-  const exportGroup = document.createElement('div');
-  exportGroup.className = 'toolbar-group';
-
+  // Share button (prominent)
   const btnCopy = document.createElement('button');
   btnCopy.textContent = 'Copy link';
+  btnCopy.title = 'Copy shareable URL to clipboard';
   btnCopy.addEventListener('click', () => {
     const url = getShareableURL(state);
     navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard'));
   });
+  toolbar.appendChild(btnCopy);
+
+  addSeparator(toolbar);
+
+  // Export dropdown-like group (secondary actions, visually subdued)
+  const exportGroup = document.createElement('div');
+  exportGroup.className = 'toolbar-group export-group';
+
+  const exportLabel = document.createElement('span');
+  exportLabel.className = 'toolbar-label';
+  exportLabel.textContent = 'Export:';
+
+  const btnSVG = document.createElement('button');
+  btnSVG.className = 'btn-secondary';
+  btnSVG.textContent = 'SVG';
+  btnSVG.addEventListener('click', () => {
+    exportSVG(document.getElementById('viewer')!);
+  });
 
   const btnHTML = document.createElement('button');
-  btnHTML.textContent = 'Export HTML';
+  btnHTML.className = 'btn-secondary';
+  btnHTML.textContent = 'HTML';
   btnHTML.addEventListener('click', () => {
     exportStandaloneHTML(document.getElementById('viewer')!);
   });
 
   const btnPDF = document.createElement('button');
-  btnPDF.textContent = 'Export PDF';
+  btnPDF.className = 'btn-secondary';
+  btnPDF.textContent = 'PDF';
   btnPDF.addEventListener('click', () => {
     exportPDF(document.getElementById('viewer')!);
   });
 
-  const btnSVG = document.createElement('button');
-  btnSVG.textContent = 'Export SVG';
-  btnSVG.addEventListener('click', () => {
-    exportSVG(document.getElementById('viewer')!);
-  });
-
-  exportGroup.append(btnCopy, btnHTML, btnPDF, btnSVG);
+  exportGroup.append(exportLabel, btnSVG, btnHTML, btnPDF);
   toolbar.appendChild(exportGroup);
 }
 

@@ -128,7 +128,8 @@ export class TanglegramRenderer {
       .attr('font-size', style.leafLabelSize + 'px')
       .attr('font-family', style.fontFamily)
       .attr('fill', style.leafLabelColor)
-      .text((d) => d.node.name);
+      .attr('font-style', 'italic')
+      .text((d) => d.node.name.replace(/_/g, ' '));
 
     // Leaf dots
     group.selectAll('circle.leaf-node')

@@ -1,5 +1,11 @@
 import * as d3 from 'd3';
 import { LayoutResult, StyleOptions, LayoutType } from './types';
+import { getMaxBranchLength } from './newick-parser';
+
+/** Format leaf names: replace underscores with spaces (Newick convention) */
+function formatLeafName(name: string): string {
+  return name.replace(/_/g, ' ');
+}
 
 export interface RendererOptions {
   container: HTMLElement;
@@ -15,6 +21,7 @@ export class TreeRenderer {
   private container: HTMLElement;
   private style: StyleOptions;
   private layoutType: LayoutType;
+  private currentLayout: LayoutResult | null = null;
 
   constructor(private options: RendererOptions) {
     this.container = options.container;
@@ -25,7 +32,6 @@ export class TreeRenderer {
   }
 
   private init(): void {
-    // Clear previous content
     d3.select(this.container).selectAll('*').remove();
 
     this.svg = d3.select(this.container)
@@ -36,7 +42,6 @@ export class TreeRenderer {
 
     this.g = this.svg.append('g').attr('class', 'tree-group');
 
-    // Set up zoom/pan
     this.zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 20])
       .on('zoom', (event) => {
@@ -44,16 +49,51 @@ export class TreeRenderer {
       });
 
     this.svg.call(this.zoom);
+
+    // Add zoom controls overlay
+    this.addZoomControls();
+  }
+
+  private addZoomControls(): void {
+    const controls = document.createElement('div');
+    controls.className = 'zoom-controls';
+
+    const btnFit = document.createElement('button');
+    btnFit.className = 'zoom-btn';
+    btnFit.title = 'Fit to view';
+    btnFit.textContent = 'Fit';
+    btnFit.addEventListener('click', () => {
+      if (this.currentLayout) this.fitToView(this.currentLayout);
+    });
+
+    const btnIn = document.createElement('button');
+    btnIn.className = 'zoom-btn';
+    btnIn.title = 'Zoom in';
+    btnIn.textContent = '+';
+    btnIn.addEventListener('click', () => {
+      this.svg.transition().duration(200).call(this.zoom.scaleBy, 1.4);
+    });
+
+    const btnOut = document.createElement('button');
+    btnOut.className = 'zoom-btn';
+    btnOut.title = 'Zoom out';
+    btnOut.textContent = '\u2212'; // minus sign
+    btnOut.addEventListener('click', () => {
+      this.svg.transition().duration(200).call(this.zoom.scaleBy, 1 / 1.4);
+    });
+
+    controls.append(btnIn, btnOut, btnFit);
+    this.container.appendChild(controls);
   }
 
   render(layout: LayoutResult): void {
+    this.currentLayout = layout;
     this.g.selectAll('*').remove();
 
     // Draw edges
     const edgeGroup = this.g.append('g').attr('class', 'edges');
 
     if (this.layoutType === 'rectangular') {
-      // Rectangular layout: draw elbow connectors
       edgeGroup.selectAll('path.branch')
         .data(layout.edges)
         .enter()
@@ -61,7 +101,6 @@ export class TreeRenderer {
         .attr('class', 'branch')
         .attr('d', (d) => {
           if (d.elbowX !== undefined && d.elbowY !== undefined) {
-            // Horizontal from parent, then vertical to child Y, then horizontal to child
             return `M${d.sourceX},${d.sourceY} V${d.elbowY} H${d.targetX}`;
           }
           return `M${d.sourceX},${d.sourceY} L${d.targetX},${d.targetY}`;
@@ -70,7 +109,6 @@ export class TreeRenderer {
         .attr('stroke', this.style.branchColor)
         .attr('stroke-width', this.style.branchWidth);
     } else {
-      // Radial layout: straight lines
       edgeGroup.selectAll('line.branch')
         .data(layout.edges)
         .enter()
@@ -86,8 +124,6 @@ export class TreeRenderer {
 
     // Draw nodes
     const nodeGroup = this.g.append('g').attr('class', 'nodes');
-
-    // Leaf labels
     const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
     const internalNodes = layout.nodes.filter((n) => n.node.children.length > 0);
 
@@ -104,9 +140,9 @@ export class TreeRenderer {
         .attr('font-size', this.style.leafLabelSize + 'px')
         .attr('font-family', this.style.fontFamily)
         .attr('fill', this.style.leafLabelColor)
-        .text((d) => d.node.name);
+        .attr('font-style', 'italic')
+        .text((d) => formatLeafName(d.node.name));
     } else {
-      // Radial: rotate labels to follow angle
       const cx = layout.width / 2;
       const cy = layout.height / 2;
       nodeGroup.selectAll('text.leaf-label')
@@ -135,7 +171,8 @@ export class TreeRenderer {
         .attr('font-size', this.style.leafLabelSize + 'px')
         .attr('font-family', this.style.fontFamily)
         .attr('fill', this.style.leafLabelColor)
-        .text((d) => d.node.name);
+        .attr('font-style', 'italic')
+        .text((d) => formatLeafName(d.node.name));
     }
 
     // Internal node labels
@@ -183,9 +220,102 @@ export class TreeRenderer {
       .attr('cy', (d) => d.y)
       .attr('r', 2)
       .attr('fill', this.style.branchColor);
+
+    // Scale bar (rectangular layout only, when branch lengths exist)
+    if (this.layoutType === 'rectangular') {
+      this.renderScaleBar(layout);
+    }
   }
 
-  /** Reset zoom to fit the tree */
+  private renderScaleBar(layout: LayoutResult): void {
+    // Check if any node has branch lengths
+    const hasBranchLengths = layout.nodes.some((n) => n.node.branchLength !== null);
+    if (!hasBranchLengths) return;
+
+    // Find the root node to compute scale
+    const rootNode = layout.nodes.find((n) => n.parentX === null);
+    if (!rootNode) return;
+
+    // Find max branch length sum
+    const maxBL = layout.nodes
+      .filter((n) => n.node.children.length === 0)
+      .reduce((max, n) => Math.max(max, n.x), 0);
+    const minX = rootNode.x;
+    const plotWidth = maxBL - minX;
+    if (plotWidth <= 0) return;
+
+    // Find actual max branch length from tree for scaling
+    const tree = rootNode.node;
+    const totalBranchLen = this.getMaxBranchLengthFromTree(tree);
+    if (totalBranchLen <= 0) return;
+
+    // Choose a nice round scale bar value
+    const pixelsPerUnit = plotWidth / totalBranchLen;
+    const targetBarPx = 80;
+    const targetBarValue = targetBarPx / pixelsPerUnit;
+    const scaleBarValue = this.niceRound(targetBarValue);
+    const scaleBarPx = scaleBarValue * pixelsPerUnit;
+
+    // Position at bottom-left of the tree area
+    const barY = layout.height - 15;
+    const barX = minX;
+
+    const scaleGroup = this.g.append('g').attr('class', 'scale-bar');
+
+    scaleGroup.append('line')
+      .attr('x1', barX)
+      .attr('y1', barY)
+      .attr('x2', barX + scaleBarPx)
+      .attr('y2', barY)
+      .attr('stroke', this.style.branchColor)
+      .attr('stroke-width', this.style.branchWidth);
+
+    // Tick marks at ends
+    scaleGroup.append('line')
+      .attr('x1', barX).attr('y1', barY - 3)
+      .attr('x2', barX).attr('y2', barY + 3)
+      .attr('stroke', this.style.branchColor)
+      .attr('stroke-width', this.style.branchWidth);
+
+    scaleGroup.append('line')
+      .attr('x1', barX + scaleBarPx).attr('y1', barY - 3)
+      .attr('x2', barX + scaleBarPx).attr('y2', barY + 3)
+      .attr('stroke', this.style.branchColor)
+      .attr('stroke-width', this.style.branchWidth);
+
+    scaleGroup.append('text')
+      .attr('x', barX + scaleBarPx / 2)
+      .attr('y', barY - 6)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', (this.style.internalLabelSize) + 'px')
+      .attr('font-family', this.style.fontFamily)
+      .attr('fill', this.style.branchColor)
+      .text(scaleBarValue < 0.001 ? scaleBarValue.toExponential(0) : String(scaleBarValue));
+  }
+
+  private getMaxBranchLengthFromTree(node: any): number {
+    if (!node.children || node.children.length === 0) return 0;
+    return Math.max(
+      ...node.children.map(
+        (child: any) => (child.branchLength ?? 1) + this.getMaxBranchLengthFromTree(child)
+      )
+    );
+  }
+
+  private niceRound(value: number): number {
+    const exp = Math.floor(Math.log10(value));
+    const base = Math.pow(10, exp);
+    const normalized = value / base;
+    if (normalized < 1.5) return base;
+    if (normalized < 3.5) return 2 * base;
+    if (normalized < 7.5) return 5 * base;
+    return 10 * base;
+  }
+
+  getCurrentLayout(): LayoutResult | null {
+    return this.currentLayout;
+  }
+
   resetZoom(): void {
     this.svg.transition().duration(300).call(
       this.zoom.transform,
@@ -193,7 +323,6 @@ export class TreeRenderer {
     );
   }
 
-  /** Fit tree to container */
   fitToView(layout: LayoutResult): void {
     const containerRect = this.container.getBoundingClientRect();
     const cw = containerRect.width;
