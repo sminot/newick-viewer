@@ -157,7 +157,7 @@ html, body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
@@ -165,9 +165,9 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
   cursor: pointer;
 }
 
@@ -262,11 +262,38 @@ html, body {
 
 #sidebar .file-input-wrapper {
   margin-top: 6px;
+  position: relative;
+}
+
+#sidebar .file-input-label {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+}
+
+#sidebar .file-input-label:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 #sidebar .file-input-wrapper input[type="file"] {
-  font-size: 11px;
-  width: 100%;
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+#sidebar .controls-separator {
+  height: 1px;
+  background: var(--border-color);
+  margin: 8px 0;
 }
 
 #sidebar .example-link {
@@ -434,5 +461,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
     max-height: 35vh;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
+  }
+  #sidebar.collapsed {
+    width: 100%;
+    min-width: 100%;
+    max-height: 0;
+    border-bottom: none;
   }
 }

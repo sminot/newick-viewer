@@ -277,7 +277,7 @@ function buildInputPanel(): void {
   // Tree 1 textarea
   const ta1 = document.createElement('textarea');
   ta1.id = 'newick-input-1';
-  ta1.placeholder = '((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);';
+  ta1.placeholder = 'Paste Newick format, e.g.:\n((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);';
   ta1.value = state.newick1;
   ta1.rows = 4;
   panel.appendChild(ta1);
@@ -285,6 +285,9 @@ function buildInputPanel(): void {
   // File upload for tree 1
   const fileDiv1 = document.createElement('div');
   fileDiv1.className = 'file-input-wrapper';
+  const fileLabel1 = document.createElement('label');
+  fileLabel1.className = 'file-input-label';
+  fileLabel1.textContent = 'Choose .nwk file or drag & drop';
   const fileInput1 = document.createElement('input');
   fileInput1.type = 'file';
   fileInput1.accept = '.nwk,.tree,.txt,.newick';
@@ -298,7 +301,8 @@ function buildInputPanel(): void {
       });
     }
   });
-  fileDiv1.appendChild(fileInput1);
+  fileLabel1.appendChild(fileInput1);
+  fileDiv1.appendChild(fileLabel1);
   panel.appendChild(fileDiv1);
 
   // Tree 2 (for tanglegram)
@@ -317,6 +321,9 @@ function buildInputPanel(): void {
 
     const fileDiv2 = document.createElement('div');
     fileDiv2.className = 'file-input-wrapper';
+    const fileLabel2 = document.createElement('label');
+    fileLabel2.className = 'file-input-label';
+    fileLabel2.textContent = 'Choose .nwk file or drag & drop';
     const fileInput2 = document.createElement('input');
     fileInput2.type = 'file';
     fileInput2.accept = '.nwk,.tree,.txt,.newick';
@@ -330,7 +337,8 @@ function buildInputPanel(): void {
         });
       }
     });
-    fileDiv2.appendChild(fileInput2);
+    fileLabel2.appendChild(fileInput2);
+    fileDiv2.appendChild(fileLabel2);
     panel.appendChild(fileDiv2);
   }
 
@@ -405,6 +413,11 @@ function buildControlsPanel(): void {
     state.style.leafLabelColor = v;
     debouncedRenderTree();
   });
+
+  // Separator between style and toggle controls
+  const controlsSep = document.createElement('div');
+  controlsSep.className = 'controls-separator';
+  panel.appendChild(controlsSep);
 
   // Show branch lengths
   addCheckbox(panel, 'Show branch lengths', state.style.showBranchLengths, (v) => {

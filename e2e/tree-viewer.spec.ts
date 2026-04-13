@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const EXAMPLE_NEWICK = '((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);';
-const PRIMATE_NEWICK = '((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,Hylobates_lar:0.0220):0.0033):0.0350,(Macaca_mulatta:0.0370,Papio_anubis:0.0365):0.0150);';
+const PRIMATE_NEWICK = '((((Homo sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,Hylobates_lar:0.0220):0.0033):0.0350,(Macaca mulatta:0.0370,Papio_anubis:0.0365):0.0150);';
 
 test.describe('Page loads correctly', () => {
   test('shows the app title and input panel', async ({ page }) => {
@@ -52,8 +52,8 @@ test.describe('Tree rendering', () => {
     const leaves = page.locator('text.leaf-label');
     await expect(leaves).toHaveCount(7);
 
-    await expect(page.locator('text.leaf-label').filter({ hasText: 'Homo_sapiens' })).toBeVisible();
-    await expect(page.locator('text.leaf-label').filter({ hasText: 'Macaca_mulatta' })).toBeVisible();
+    await expect(page.locator('text.leaf-label').filter({ hasText: 'Homo sapiens' })).toBeVisible();
+    await expect(page.locator('text.leaf-label').filter({ hasText: 'Macaca mulatta' })).toBeVisible();
   });
 
   test('Load example button renders the demo tree', async ({ page }) => {
