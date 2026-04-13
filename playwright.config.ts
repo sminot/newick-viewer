@@ -7,11 +7,6 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   timeout: 30000,
-  expect: {
-    toHaveScreenshot: {
-      maxDiffPixelRatio: 0.05,
-    },
-  },
   use: {
     baseURL: 'http://localhost:4173/newick-viewer/',
     screenshot: 'only-on-failure',
@@ -30,6 +25,4 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  /* Update snapshots in CI on first run */
-  updateSnapshots: 'missing',
 });
