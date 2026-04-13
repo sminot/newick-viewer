@@ -2,7 +2,7 @@
 
 A static web application for viewing phylogenetic trees from Newick format files. Supports interactive zoom/pan, multiple layout modes, tanglegram comparison, and shareable URLs with full state encoding.
 
-Built for biomedical researchers. Styled after the NCBI design system.
+Built for biomedical researchers.
 
 ## Features
 
@@ -110,7 +110,7 @@ src/
 ├── state.ts           URL state encoding/decoding (LZ-string)
 ├── export.ts          SVG, HTML, and PDF export
 ├── types.ts           TypeScript interfaces and defaults
-└── style.css          NCBI-styled CSS
+└── style.css          Global styles
 
 tests/                 Vitest unit tests
 e2e/                   Playwright integration tests

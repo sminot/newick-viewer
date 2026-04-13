@@ -155,7 +155,7 @@ function buildToolbar(): void {
   // App title
   const title = document.createElement('span');
   title.className = 'app-title';
-  title.textContent = 'Tree Viewer';
+  title.textContent = 'Newick Viewer';
   toolbar.appendChild(title);
 
   // Layout toggle group (primary actions)

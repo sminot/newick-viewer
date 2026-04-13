@@ -6,7 +6,7 @@ const PRIMATE_NEWICK = '((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,G
 test.describe('Page loads correctly', () => {
   test('shows the app title and input panel', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('.app-title')).toHaveText('Tree Viewer');
+    await expect(page.locator('.app-title')).toHaveText('Newick Viewer');
     await expect(page.locator('#newick-input-1')).toBeVisible();
   });
 
