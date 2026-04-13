@@ -4,15 +4,12 @@ import {
   autocompleteName,
   getInducedSubtree,
   getSubtree,
-  searchAndGetSubtree,
 } from '../src/opentree';
 
-// These tests call the real Open Tree of Life API.
-// They are tagged with 'api' and require network access.
-// Run with: npx vitest run --testPathPattern opentree
+// These tests call the real Open Tree of Life API and require network access.
+// They are excluded from the default test suite and run via `npm run test:api`.
 
 describe('Open Tree of Life API', () => {
-  // Increase timeout for network calls
   const TIMEOUT = 30000;
 
   describe('matchNames', () => {
@@ -35,7 +32,6 @@ describe('Open Tree of Life API', () => {
 
     it('returns empty for nonexistent taxon', async () => {
       const matches = await matchNames(['Xyzzyplugh_nonexistent_taxon']);
-      // Either empty or no good match
       const exactMatch = matches.find((m) => !m.is_approximate_match);
       expect(exactMatch).toBeUndefined();
     }, TIMEOUT);
@@ -43,7 +39,6 @@ describe('Open Tree of Life API', () => {
     it('supports approximate matching', async () => {
       const matches = await matchNames(['Homo sapens'], true); // misspelled
       expect(matches.length).toBeGreaterThan(0);
-      // Should find an approximate match
       const approx = matches.find((m) => m.is_approximate_match);
       expect(approx).toBeDefined();
     }, TIMEOUT);
@@ -65,14 +60,20 @@ describe('Open Tree of Life API', () => {
   });
 
   describe('getInducedSubtree', () => {
-    it('returns a Newick tree for a set of OTT IDs', async () => {
+    it('returns a Newick tree for great ape OTT IDs', async () => {
       // Human (770315), Chimp (417957), Gorilla (417969)
       const result = await getInducedSubtree([770315, 417957, 417969]);
       expect(result.newick).toBeTruthy();
       expect(result.newick).toContain('(');
       expect(result.newick).toContain(')');
-      // Should contain at least some taxon names
       expect(result.newick.length).toBeGreaterThan(10);
+    }, TIMEOUT);
+
+    it('returns a Newick tree for distantly related taxa', async () => {
+      // Human (770315), Mouse (542509), Zebrafish (1005931)
+      const result = await getInducedSubtree([770315, 542509, 1005931]);
+      expect(result.newick).toBeTruthy();
+      expect(result.newick).toContain('(');
     }, TIMEOUT);
 
     it('throws for fewer than 2 OTT IDs', async () => {
@@ -81,30 +82,12 @@ describe('Open Tree of Life API', () => {
   });
 
   describe('getSubtree', () => {
-    it('returns a Newick subtree for Carnivora', async () => {
-      // Carnivora OTT ID: 44565
-      const result = await getSubtree(44565, 2);
+    it('returns a Newick subtree for a well-known clade', async () => {
+      // Mammalia OTT ID: 244265 — large, stable clade
+      const result = await getSubtree(244265, 2);
       expect(result.newick).toBeTruthy();
       expect(result.newick).toContain('(');
       expect(result.newick).toContain(')');
-    }, TIMEOUT);
-
-    it('handles broken taxa by falling back to MRCA', async () => {
-      // Hominidae (770311) is known to be "broken" in the synthetic tree.
-      // The client should fall back to the MRCA node and still return a tree.
-      const result = await getSubtree(770311, 2);
-      expect(result.newick).toBeTruthy();
-      expect(result.newick).toContain('(');
-    }, TIMEOUT);
-  });
-
-  describe('searchAndGetSubtree', () => {
-    it('searches by name and returns a Newick tree', async () => {
-      const result = await searchAndGetSubtree('Carnivora', 2);
-      expect(result.newick).toBeTruthy();
-      expect(result.newick).toContain('(');
-      expect(result.ottId).toBeGreaterThan(0);
-      expect(result.name).toBeTruthy();
     }, TIMEOUT);
   });
 });

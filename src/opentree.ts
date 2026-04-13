@@ -165,8 +165,13 @@ export async function getSubtree(
             supporting_studies: retryData.supporting_studies ?? [],
           };
         }
+        const retryText = await retryResp.text();
+        throw new Error(`OpenTree subtree failed for MRCA ${errData.mrca} (${retryResp.status}): ${retryText}`);
       }
-    } catch { /* fall through to original error */ }
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith('OpenTree')) throw e;
+      /* fall through to original error */
+    }
     throw new Error(`OpenTree subtree failed (${resp.status}): ${text}`);
   }
 
