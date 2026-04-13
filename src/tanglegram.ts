@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { TreeNode, LayoutResult, StyleOptions } from './types';
+import { TreeNode, LayoutResult, StyleOptions, TanglegramStyle } from './types';
 import { computeLayout } from './layout';
 
 export interface TanglegramOptions {
@@ -7,6 +7,7 @@ export interface TanglegramOptions {
   tree1: TreeNode;
   tree2: TreeNode;
   style: StyleOptions;
+  tanglegramStyle: TanglegramStyle;
 }
 
 /**
@@ -48,14 +49,15 @@ export class TanglegramRenderer {
   render(): void {
     this.g.selectAll('*').remove();
 
-    const { tree1, tree2, style } = this.options;
+    const { tree1, tree2, style, tanglegramStyle } = this.options;
     const containerRect = this.container.getBoundingClientRect();
     const totalWidth = containerRect.width || 1200;
     const totalHeight = containerRect.height || 800;
 
-    // Each tree gets ~40% of width, middle 20% for connecting lines
-    const treeWidth = totalWidth * 0.38;
-    const gapWidth = totalWidth * 0.24;
+    // Use spacing setting to control gap between trees
+    const gapFraction = Math.max(0.05, Math.min(0.6, tanglegramStyle.spacing));
+    const treeWidth = totalWidth * (1 - gapFraction) / 2;
+    const gapWidth = totalWidth * gapFraction;
     const treeHeight = totalHeight;
 
     // Layout left tree (normal)
@@ -77,21 +79,26 @@ export class TanglegramRenderer {
       }
     }
 
-    // Draw left tree
-    this.drawTree(layout1, style, 'left');
+    // Draw left tree, capture label end positions
+    const leftLabelEnds = this.drawTree(layout1, style, 'left');
 
-    // Draw right tree (with right-aligned labels)
-    this.drawTree(layout2, style, 'right');
+    // Draw right tree, capture label end positions
+    const rightLabelEnds = this.drawTree(layout2, style, 'right');
 
     // Draw connecting lines between matching leaves
-    this.drawConnections(layout1, layout2, style);
+    this.drawConnections(leftLabelEnds, rightLabelEnds, tanglegramStyle);
   }
 
+  /**
+   * Draw a tree and return a map of leaf name -> label end x-coordinate.
+   * For left tree, label end is the right edge of the text.
+   * For right tree, label end is the left edge of the text.
+   */
   private drawTree(
     layout: LayoutResult,
     style: StyleOptions,
     side: 'left' | 'right'
-  ): void {
+  ): Map<string, { x: number; y: number }> {
     const group = this.g.append('g').attr('class', `tree-${side}`);
 
     // Edges with elbow connectors
@@ -102,10 +109,6 @@ export class TanglegramRenderer {
       .attr('class', 'branch')
       .attr('d', (d) => {
         if (d.elbowX !== undefined && d.elbowY !== undefined) {
-          if (side === 'right') {
-            // Mirrored elbow
-            return `M${d.sourceX},${d.sourceY} V${d.elbowY} H${d.targetX}`;
-          }
           return `M${d.sourceX},${d.sourceY} V${d.elbowY} H${d.targetX}`;
         }
         return `M${d.sourceX},${d.sourceY} L${d.targetX},${d.targetY}`;
@@ -116,7 +119,8 @@ export class TanglegramRenderer {
 
     // Leaf labels
     const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
-    group.selectAll('text.leaf-label')
+
+    const labelSelection = group.selectAll('text.leaf-label')
       .data(leafNodes)
       .enter()
       .append('text')
@@ -141,42 +145,58 @@ export class TanglegramRenderer {
       .attr('cy', (d) => d.y)
       .attr('r', 2)
       .attr('fill', style.branchColor);
+
+    // Measure label bounding boxes to find the end of each label
+    const labelEnds = new Map<string, { x: number; y: number }>();
+    labelSelection.each(function (d) {
+      const bbox = (this as SVGTextElement).getBBox();
+      const endX = side === 'left'
+        ? bbox.x + bbox.width + 3  // right edge + small pad
+        : bbox.x - 3;              // left edge - small pad
+      labelEnds.set(d.node.name, { x: endX, y: d.y });
+    });
+
+    return labelEnds;
   }
 
   private drawConnections(
-    layout1: LayoutResult,
-    layout2: LayoutResult,
-    style: StyleOptions
+    leftEnds: Map<string, { x: number; y: number }>,
+    rightEnds: Map<string, { x: number; y: number }>,
+    ts: TanglegramStyle
   ): void {
     const connGroup = this.g.append('g').attr('class', 'connections');
 
-    const leaves1 = layout1.nodes.filter((n) => n.node.children.length === 0);
-    const leaves2 = layout2.nodes.filter((n) => n.node.children.length === 0);
-
-    // Map leaf names to positions for right tree
-    const leaf2Map = new Map<string, { x: number; y: number }>();
-    for (const leaf of leaves2) {
-      leaf2Map.set(leaf.node.name, { x: leaf.x, y: leaf.y });
-    }
-
-    // Generate distinguishable colors for connections
-    const matchingLeaves = leaves1.filter((l) => leaf2Map.has(l.node.name));
+    const matchingNames = [...leftEnds.keys()].filter((name) => rightEnds.has(name));
     const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 
-    // Draw curved connecting lines
-    matchingLeaves.forEach((leaf1, i) => {
-      const pos2 = leaf2Map.get(leaf1.node.name);
-      if (!pos2) return;
+    // Compute stroke-dasharray for line style
+    let dasharray: string | undefined;
+    switch (ts.connectionLineStyle) {
+      case 'dashed': dasharray = '6,4'; break;
+      case 'dotted': dasharray = '2,3'; break;
+      default: dasharray = undefined;
+    }
 
-      const midX = (leaf1.x + pos2.x) / 2;
+    matchingNames.forEach((name, i) => {
+      const left = leftEnds.get(name)!;
+      const right = rightEnds.get(name)!;
 
-      connGroup.append('path')
+      const midX = (left.x + right.x) / 2;
+      const strokeColor = ts.connectionColorMode === 'single'
+        ? ts.connectionColor
+        : colorScale(String(i));
+
+      const path = connGroup.append('path')
         .attr('class', 'connection')
-        .attr('d', `M${leaf1.x},${leaf1.y} C${midX},${leaf1.y} ${midX},${pos2.y} ${pos2.x},${pos2.y}`)
+        .attr('d', `M${left.x},${left.y} C${midX},${left.y} ${midX},${right.y} ${right.x},${right.y}`)
         .attr('fill', 'none')
-        .attr('stroke', colorScale(String(i)))
-        .attr('stroke-width', 1)
-        .attr('stroke-opacity', 0.5);
+        .attr('stroke', strokeColor)
+        .attr('stroke-width', ts.connectionWidth)
+        .attr('stroke-opacity', 0.6);
+
+      if (dasharray) {
+        path.attr('stroke-dasharray', dasharray);
+      }
     });
   }
 

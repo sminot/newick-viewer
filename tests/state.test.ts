@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { encodeState, decodeState, defaultViewState } from '../src/state';
-import { ViewState, DEFAULT_STYLE } from '../src/types';
+import { ViewState, DEFAULT_STYLE, DEFAULT_TANGLEGRAM_STYLE } from '../src/types';
 
 describe('state encoding/decoding', () => {
   it('round-trips a default state', () => {
@@ -17,19 +17,27 @@ describe('state encoding/decoding', () => {
       layout: 'rectangular',
       style: { ...DEFAULT_STYLE, branchColor: '#ff0000', branchWidth: 3 },
       tanglegram: false,
+      tanglegramStyle: { ...DEFAULT_TANGLEGRAM_STYLE },
     };
     const encoded = encodeState(state);
     const decoded = decodeState(encoded);
     expect(decoded).toEqual(state);
   });
 
-  it('round-trips a tanglegram state', () => {
+  it('round-trips a tanglegram state with custom connection settings', () => {
     const state: ViewState = {
       newick1: '(A,B,C);',
       newick2: '(C,B,A);',
       layout: 'rectangular',
       style: DEFAULT_STYLE,
       tanglegram: true,
+      tanglegramStyle: {
+        spacing: 0.35,
+        connectionColor: '#ff0000',
+        connectionColorMode: 'multi',
+        connectionWidth: 2,
+        connectionLineStyle: 'dashed',
+      },
     };
     const encoded = encodeState(state);
     const decoded = decodeState(encoded);
@@ -43,15 +51,28 @@ describe('state encoding/decoding', () => {
       layout: 'rectangular',
       style: DEFAULT_STYLE,
       tanglegram: false,
+      tanglegramStyle: { ...DEFAULT_TANGLEGRAM_STYLE },
     };
     const encoded = encodeState(state);
-    // Should produce a non-empty string
     expect(encoded.length).toBeGreaterThan(0);
-    // Should be a string (URL-safe)
     expect(typeof encoded).toBe('string');
-    // Should round-trip correctly
     const decoded = decodeState(encoded);
     expect(decoded).toEqual(state);
+  });
+
+  it('fills in missing tanglegramStyle from older URLs', () => {
+    // Simulate an older URL that doesn't have tanglegramStyle
+    const oldState = {
+      newick1: '(A,B);',
+      newick2: '',
+      layout: 'rectangular',
+      style: DEFAULT_STYLE,
+      tanglegram: false,
+    };
+    const encoded = encodeState(oldState as ViewState);
+    const decoded = decodeState(encoded);
+    // Should fill in default tanglegramStyle
+    expect(decoded!.tanglegramStyle).toEqual(DEFAULT_TANGLEGRAM_STYLE);
   });
 
   it('returns null for invalid encoded data', () => {

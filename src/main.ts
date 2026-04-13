@@ -116,6 +116,7 @@ function renderTree(): void {
         tree1,
         tree2,
         style: state.style,
+        tanglegramStyle: state.tanglegramStyle,
       });
     } else {
       // Single tree mode
@@ -193,6 +194,7 @@ function buildToolbar(): void {
     state.tanglegram = !state.tanglegram;
     buildToolbar();
     buildInputPanel();
+    buildControlsPanel();
     renderTree();
   });
   toolbar.appendChild(btnTangle);
@@ -430,6 +432,56 @@ function buildControlsPanel(): void {
     state.style.showInternalLabels = v;
     renderTree();
   });
+
+  // Tanglegram-specific controls (only shown when tanglegram is active)
+  if (state.tanglegram) {
+    const tangleSep = document.createElement('div');
+    tangleSep.className = 'controls-separator';
+    panel.appendChild(tangleSep);
+
+    const h3t = document.createElement('h3');
+    h3t.textContent = 'Tanglegram Connections';
+    panel.appendChild(h3t);
+
+    // Spacing between trees
+    addRangeControl(panel, 'Tree spacing', state.tanglegramStyle.spacing, 0.05, 0.6, 0.01, (v) => {
+      state.tanglegramStyle.spacing = v;
+      debouncedRenderTree();
+    });
+
+    // Connection color mode toggle
+    addSelectControl(panel, 'Color mode', state.tanglegramStyle.connectionColorMode,
+      [{ value: 'single', label: 'Single color' }, { value: 'multi', label: 'Multi-color' }],
+      (v) => {
+        state.tanglegramStyle.connectionColorMode = v as 'single' | 'multi';
+        buildControlsPanel(); // Rebuild to show/hide color picker
+        renderTree();
+      }
+    );
+
+    // Connection color (only when single-color mode)
+    if (state.tanglegramStyle.connectionColorMode === 'single') {
+      addColorControl(panel, 'Connection color', state.tanglegramStyle.connectionColor, (v) => {
+        state.tanglegramStyle.connectionColor = v;
+        debouncedRenderTree();
+      });
+    }
+
+    // Connection line width
+    addRangeControl(panel, 'Connection width', state.tanglegramStyle.connectionWidth, 0.5, 4, 0.5, (v) => {
+      state.tanglegramStyle.connectionWidth = v;
+      debouncedRenderTree();
+    });
+
+    // Connection line style
+    addSelectControl(panel, 'Line style', state.tanglegramStyle.connectionLineStyle,
+      [{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }],
+      (v) => {
+        state.tanglegramStyle.connectionLineStyle = v as 'solid' | 'dashed' | 'dotted';
+        renderTree();
+      }
+    );
+  }
 }
 
 function addColorControl(
@@ -499,6 +551,30 @@ function addCheckbox(
   span.textContent = label;
   input.addEventListener('change', () => onChange(input.checked));
   row.append(input, span);
+  parent.appendChild(row);
+}
+
+function addSelectControl(
+  parent: HTMLElement,
+  label: string,
+  value: string,
+  options: { value: string; label: string }[],
+  onChange: (v: string) => void
+): void {
+  const row = document.createElement('label');
+  const span = document.createElement('span');
+  span.textContent = label;
+  const select = document.createElement('select');
+  select.className = 'sidebar-select';
+  for (const opt of options) {
+    const el = document.createElement('option');
+    el.value = opt.value;
+    el.textContent = opt.label;
+    if (opt.value === value) el.selected = true;
+    select.appendChild(el);
+  }
+  select.addEventListener('change', () => onChange(select.value));
+  row.append(span, select);
   parent.appendChild(row);
 }
 

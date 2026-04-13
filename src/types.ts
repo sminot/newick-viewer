@@ -38,6 +38,17 @@ export interface LayoutResult {
   height: number;
 }
 
+export type ConnectionColorMode = 'single' | 'multi';
+export type ConnectionLineStyle = 'solid' | 'dashed' | 'dotted';
+
+export interface TanglegramStyle {
+  spacing: number;            // 0-1, fraction of total width used as gap between trees
+  connectionColor: string;    // color when mode is 'single'
+  connectionColorMode: ConnectionColorMode;
+  connectionWidth: number;
+  connectionLineStyle: ConnectionLineStyle;
+}
+
 export interface StyleOptions {
   branchColor: string;
   branchWidth: number;
@@ -55,7 +66,16 @@ export interface ViewState {
   layout: LayoutType;
   style: StyleOptions;
   tanglegram: boolean;
+  tanglegramStyle: TanglegramStyle;
 }
+
+export const DEFAULT_TANGLEGRAM_STYLE: TanglegramStyle = {
+  spacing: 0.24,
+  connectionColor: '#71767a',
+  connectionColorMode: 'single',
+  connectionWidth: 1,
+  connectionLineStyle: 'solid',
+};
 
 export const DEFAULT_STYLE: StyleOptions = {
   branchColor: '#1b1b1b',

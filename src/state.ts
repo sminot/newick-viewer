@@ -1,5 +1,5 @@
 import LZString from 'lz-string';
-import { ViewState, StyleOptions, DEFAULT_STYLE, LayoutType } from './types';
+import { ViewState, StyleOptions, DEFAULT_STYLE, DEFAULT_TANGLEGRAM_STYLE, LayoutType } from './types';
 
 const STATE_PARAM = 's';
 
@@ -23,6 +23,7 @@ export function decodeState(encoded: string): ViewState | null {
       layout: parsed.layout ?? defaults.layout,
       tanglegram: parsed.tanglegram ?? defaults.tanglegram,
       style: { ...defaults.style, ...(parsed.style ?? {}) },
+      tanglegramStyle: { ...defaults.tanglegramStyle, ...(parsed.tanglegramStyle ?? {}) },
     };
   } catch {
     return null;
@@ -62,5 +63,6 @@ export function defaultViewState(): ViewState {
     layout: 'rectangular',
     style: { ...DEFAULT_STYLE },
     tanglegram: false,
+    tanglegramStyle: { ...DEFAULT_TANGLEGRAM_STYLE },
   };
 }
