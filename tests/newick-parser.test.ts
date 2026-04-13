@@ -108,6 +108,32 @@ describe('parseNewick', () => {
   it('throws on unbalanced parentheses', () => {
     expect(() => parseNewick('((A,B);')).toThrow();
   });
+
+  it('handles escaped single quotes in quoted labels', () => {
+    const tree = parseNewick("('it''s_a_test':0.1,B:0.2);");
+    expect(tree.children[0].name).toBe("it's_a_test");
+    expect(tree.children[0].branchLength).toBeCloseTo(0.1);
+  });
+
+  it('strips bracket annotations (NHX/bootstrap)', () => {
+    const tree = parseNewick('(A:0.1[100],B:0.2[95]):0.3[&&NHX:S=root];');
+    expect(tree.children[0].name).toBe('A');
+    expect(tree.children[0].branchLength).toBeCloseTo(0.1);
+    expect(tree.children[1].branchLength).toBeCloseTo(0.2);
+  });
+
+  it('handles bootstrap values as internal labels with annotations', () => {
+    const tree = parseNewick('((A:0.05,B:0.1)90[&&NHX:B=90]:0.15,(C:0.2,D:0.25)75:0.3);');
+    expect(tree.children[0].name).toBe('90');
+    expect(tree.children[0].branchLength).toBeCloseTo(0.15);
+    expect(getLeafNames(tree)).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('handles nested bracket annotations', () => {
+    const tree = parseNewick('(A[comment [nested] end]:0.1,B:0.2);');
+    expect(tree.children[0].name).toBe('A');
+    expect(tree.children[0].branchLength).toBeCloseTo(0.1);
+  });
 });
 
 describe('toNewick', () => {
@@ -124,6 +150,15 @@ describe('toNewick', () => {
     // Re-parse to verify structural equivalence
     const reparsed = parseNewick(output + ';');
     expect(getLeafNames(reparsed)).toEqual(getLeafNames(tree));
+  });
+
+  it('escapes single quotes in names', () => {
+    const tree = parseNewick("('it''s_a_test',B);");
+    const output = toNewick(tree);
+    expect(output).toContain("'it''s_a_test'");
+    // Should round-trip cleanly
+    const reparsed = parseNewick(output + ';');
+    expect(reparsed.children[0].name).toBe("it's_a_test");
   });
 });
 

@@ -1,14 +1,6 @@
 import { TreeNode, LayoutNode, LayoutEdge, LayoutResult, LayoutType } from './types';
 import { getLeafNames, getMaxBranchLength } from './newick-parser';
 
-/** Assign leaf order (y-position index) via in-order traversal */
-function assignLeafOrder(node: TreeNode): number[] {
-  if (node.children.length === 0) {
-    return [node.id!];
-  }
-  return node.children.flatMap(assignLeafOrder);
-}
-
 /** Compute rectangular (dendrogram) layout */
 export function computeRectangularLayout(
   root: TreeNode,
@@ -122,7 +114,7 @@ export function computeRadialLayout(
     } else {
       const childResults = node.children.map((child) => {
         const childDepth = depth + (useBranchLengths ? (child.branchLength ?? 1) : 1);
-        return layout(child, 0, 0, childDepth); // parentX/Y filled later
+        return layout(child, 0, 0, childDepth);
       });
 
       // Angle is midpoint of child angles
@@ -130,12 +122,16 @@ export function computeRadialLayout(
       const maxAngle = childResults[childResults.length - 1].angle;
       angle = (minAngle + maxAngle) / 2;
 
-      // Draw edges as straight lines (radial)
       const x = cx + radius * Math.cos(angle);
       const y = cy + radius * Math.sin(angle);
 
+      // Fix parentX/parentY for direct children
+      for (const childNode of node.children) {
+        const ln = nodes.find((n) => n.node === childNode);
+        if (ln) { ln.parentX = x; ln.parentY = y; }
+      }
+
       for (const cr of childResults) {
-        // Arc from parent angle to child angle at parent radius, then radial line
         edges.push({
           sourceX: x,
           sourceY: y,

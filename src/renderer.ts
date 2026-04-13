@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { LayoutResult, LayoutNode, StyleOptions, LayoutType, DEFAULT_STYLE } from './types';
+import { LayoutResult, StyleOptions, LayoutType } from './types';
 
 export interface RendererOptions {
   container: HTMLElement;

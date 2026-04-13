@@ -3,7 +3,7 @@ import { parseNewick, getLeafNames } from './newick-parser';
 import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
-import { ViewState, StyleOptions, DEFAULT_STYLE, LayoutType } from './types';
+import { ViewState, DEFAULT_STYLE } from './types';
 import { getStateFromURL, setStateInURL, getShareableURL, defaultViewState } from './state';
 import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
 
@@ -39,9 +39,10 @@ function init(): void {
 function showPlaceholderIfEmpty(): void {
   const viewer = document.getElementById('viewer')!;
   if (!state.newick1) {
-    // Clear any existing renderers
+    // Clear everything in the viewer
     if (currentRenderer) { currentRenderer.destroy(); currentRenderer = null; }
     if (currentTanglegram) { currentTanglegram.destroy(); currentTanglegram = null; }
+    viewer.querySelectorAll('svg, .viewer-message').forEach((el) => el.remove());
 
     const msg = document.createElement('div');
     msg.className = 'viewer-message';
@@ -89,7 +90,6 @@ function renderTree(): void {
         tree1,
         tree2,
         style: state.style,
-        layoutType: state.layout,
       });
     } else {
       // Single tree mode
@@ -235,6 +235,8 @@ function buildInputPanel(): void {
     if (file) {
       file.text().then((text) => {
         ta1.value = text.trim();
+        state.newick1 = text.trim();
+        renderTree();
       });
     }
   });
@@ -265,6 +267,8 @@ function buildInputPanel(): void {
       if (file) {
         file.text().then((text) => {
           ta2.value = text.trim();
+          state.newick2 = text.trim();
+          renderTree();
         });
       }
     });

@@ -24,11 +24,13 @@ export function parseNewick(input: string): TreeNode {
 
   function peek(): string {
     skipWhitespace();
+    skipAnnotations();
     return str[pos] ?? '';
   }
 
   function consume(expected?: string): string {
     skipWhitespace();
+    skipAnnotations();
     if (pos >= str.length) {
       throw new Error(`Unexpected end of input at position ${pos}`);
     }
@@ -45,6 +47,21 @@ export function parseNewick(input: string): TreeNode {
   function skipWhitespace(): void {
     while (pos < str.length && /\s/.test(str[pos])) {
       pos++;
+    }
+  }
+
+  /** Skip bracket annotations like [&&&NHX:...] or [100] */
+  function skipAnnotations(): void {
+    skipWhitespace();
+    while (pos < str.length && str[pos] === '[') {
+      let depth = 1;
+      pos++; // skip '['
+      while (pos < str.length && depth > 0) {
+        if (str[pos] === '[') depth++;
+        else if (str[pos] === ']') depth--;
+        pos++;
+      }
+      skipWhitespace();
     }
   }
 
@@ -96,52 +113,60 @@ export function parseNewick(input: string): TreeNode {
 
   function parseName(): string {
     skipWhitespace();
+    skipAnnotations();
     if (pos >= str.length) return '';
 
-    // Quoted name
+    // Quoted name (single quotes, with '' escape for literal quote)
     if (str[pos] === "'") {
       pos++; // skip opening quote
       let name = '';
-      while (pos < str.length && str[pos] !== "'") {
-        name += str[pos];
-        pos++;
+      while (pos < str.length) {
+        if (str[pos] === "'") {
+          // Check for escaped quote ('')
+          if (pos + 1 < str.length && str[pos + 1] === "'") {
+            name += "'";
+            pos += 2;
+          } else {
+            pos++; // skip closing quote
+            break;
+          }
+        } else {
+          name += str[pos];
+          pos++;
+        }
       }
-      if (pos < str.length) pos++; // skip closing quote
+      skipAnnotations();
       return name;
     }
 
-    // Unquoted name - read until delimiter
+    // Unquoted name - read until delimiter, skip brackets
     let name = '';
     while (
       pos < str.length &&
-      !':,;()'.includes(str[pos]) &&
+      !':,;()[]'.includes(str[pos]) &&
       !/\s/.test(str[pos])
     ) {
       name += str[pos];
       pos++;
     }
+    skipAnnotations();
     return name;
   }
 
   function parseLength(): number {
     skipWhitespace();
-    let numStr = '';
-    while (
-      pos < str.length &&
-      (str[pos] === '-' ||
-        str[pos] === '+' ||
-        str[pos] === '.' ||
-        str[pos] === 'e' ||
-        str[pos] === 'E' ||
-        (str[pos] >= '0' && str[pos] <= '9'))
-    ) {
-      numStr += str[pos];
-      pos++;
+    // Use regex to match a proper floating point number from current position
+    const remaining = str.slice(pos);
+    const match = remaining.match(/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/);
+    if (!match) {
+      throw new Error(`Invalid branch length at position ${pos}`);
     }
-    const val = parseFloat(numStr);
+    pos += match[0].length;
+    const val = parseFloat(match[0]);
     if (isNaN(val)) {
-      throw new Error(`Invalid branch length '${numStr}' at position ${pos}`);
+      throw new Error(`Invalid branch length '${match[0]}' at position ${pos}`);
     }
+    skipAnnotations(); // Skip any annotations after branch length like :0.1[100]
     return val;
   }
 
@@ -164,8 +189,9 @@ export function toNewick(node: TreeNode): string {
   }
   // Escape name if it contains special characters
   if (node.name) {
-    if (/[,:;()\s']/.test(node.name)) {
-      result += "'" + node.name + "'";
+    if (/[,:;()\s'\[\]]/.test(node.name)) {
+      // Double any embedded single quotes per Newick convention
+      result += "'" + node.name.replace(/'/g, "''") + "'";
     } else {
       result += node.name;
     }

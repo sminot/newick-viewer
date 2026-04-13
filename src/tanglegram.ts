@@ -1,15 +1,12 @@
 import * as d3 from 'd3';
-import { TreeNode, LayoutResult, StyleOptions, LayoutType } from './types';
-import { parseNewick, getLeafNames } from './newick-parser';
+import { TreeNode, LayoutResult, StyleOptions } from './types';
 import { computeLayout } from './layout';
-import { TreeRenderer } from './renderer';
 
 export interface TanglegramOptions {
   container: HTMLElement;
   tree1: TreeNode;
   tree2: TreeNode;
   style: StyleOptions;
-  layoutType: LayoutType;
 }
 
 /**

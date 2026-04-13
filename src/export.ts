@@ -2,13 +2,19 @@
  * Export utilities for downloading tree visualizations as PDF or standalone HTML.
  */
 
-/** Get the current SVG element's serialized content */
+/** Get the current SVG element's serialized content with zoom reset */
 function getSVGContent(container: HTMLElement): string | null {
   const svg = container.querySelector('svg');
   if (!svg) return null;
 
   // Clone the SVG so we can modify it without affecting the display
   const clone = svg.cloneNode(true) as SVGSVGElement;
+
+  // Reset the zoom transform on the cloned group so we export the full tree
+  const group = clone.querySelector('g');
+  if (group) {
+    group.removeAttribute('transform');
+  }
 
   // Get computed dimensions
   const bbox = svg.getBoundingClientRect();
@@ -32,17 +38,22 @@ function downloadFile(filename: string, content: string, mimeType: string): void
   URL.revokeObjectURL(url);
 }
 
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 /** Export tree as a standalone HTML file that can be opened in any browser */
 export function exportStandaloneHTML(container: HTMLElement, title: string = 'Phylogenetic Tree'): void {
   const svgContent = getSVGContent(container);
   if (!svgContent) return;
+  const safeTitle = escapeHtmlAttr(title);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title}</title>
+<title>${safeTitle}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -73,7 +84,7 @@ export function exportStandaloneHTML(container: HTMLElement, title: string = 'Ph
 </head>
 <body>
 <div class="container">
-  <h1>${title}</h1>
+  <h1>${safeTitle}</h1>
   ${svgContent}
 </div>
 <script>
@@ -121,6 +132,7 @@ export function exportStandaloneHTML(container: HTMLElement, title: string = 'Ph
 export function exportPDF(container: HTMLElement, title: string = 'Phylogenetic Tree'): void {
   const svgContent = getSVGContent(container);
   if (!svgContent) return;
+  const safeTitle = escapeHtmlAttr(title);
 
   // Open a new window with just the SVG for printing
   const printWindow = window.open('', '_blank');
@@ -132,7 +144,7 @@ export function exportPDF(container: HTMLElement, title: string = 'Phylogenetic 
   printWindow.document.write(`<!DOCTYPE html>
 <html>
 <head>
-<title>${title}</title>
+<title>${safeTitle}</title>
 <style>
   @page { size: landscape; margin: 0.5in; }
   * { margin: 0; padding: 0; }
@@ -142,7 +154,7 @@ export function exportPDF(container: HTMLElement, title: string = 'Phylogenetic 
 </style>
 </head>
 <body>
-  <h1>${title}</h1>
+  <h1>${safeTitle}</h1>
   ${svgContent}
   <script>
     window.onload = function() {
