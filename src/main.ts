@@ -1,5 +1,5 @@
 import './style.css';
-import { parseNewick, getLeafNames } from './newick-parser';
+import { parseNewick, getLeafNames, getMaxBranchLength } from './newick-parser';
 import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
@@ -22,6 +22,7 @@ function init(): void {
   buildToolbar();
   buildInputPanel();
   buildControlsPanel();
+  setupDragDrop();
   renderTree();
 
   // Debounced resize handler
@@ -136,6 +137,10 @@ function renderTree(): void {
       }
     }
 
+    // Show tree stats
+    const maxBL = getMaxBranchLength(tree1);
+    showTreeStats(getLeafNames(tree1).length, maxBL);
+
     clearError();
     setStateInURL(state);
   } catch (e: any) {
@@ -191,6 +196,19 @@ function buildToolbar(): void {
     renderTree();
   });
   toolbar.appendChild(btnTangle);
+
+  addSeparator(toolbar);
+
+  // Sidebar toggle
+  const btnSidebar = document.createElement('button');
+  btnSidebar.className = 'btn-secondary';
+  btnSidebar.textContent = 'Panel';
+  btnSidebar.title = 'Toggle sidebar panel';
+  btnSidebar.addEventListener('click', () => {
+    const sidebar = document.getElementById('sidebar')!;
+    sidebar.classList.toggle('collapsed');
+  });
+  toolbar.appendChild(btnSidebar);
 
   // Spacer pushes export actions to the right
   const spacer = document.createElement('div');
@@ -322,7 +340,7 @@ function buildInputPanel(): void {
 
   const btnRender = document.createElement('button');
   btnRender.className = 'primary';
-  btnRender.textContent = 'Render tree';
+  btnRender.textContent = 'Display tree';
   btnRender.addEventListener('click', () => {
     state.newick1 = ta1.value.trim();
     if (state.tanglegram) {
@@ -367,25 +385,25 @@ function buildControlsPanel(): void {
   // Branch color
   addColorControl(panel, 'Branch color', state.style.branchColor, (v) => {
     state.style.branchColor = v;
-    renderTree();
+    debouncedRenderTree();
   });
 
   // Branch width
   addRangeControl(panel, 'Branch width', state.style.branchWidth, 0.5, 5, 0.5, (v) => {
     state.style.branchWidth = v;
-    renderTree();
+    debouncedRenderTree();
   });
 
   // Leaf label size
   addRangeControl(panel, 'Label size', state.style.leafLabelSize, 6, 28, 1, (v) => {
     state.style.leafLabelSize = v;
-    renderTree();
+    debouncedRenderTree();
   });
 
   // Label color
   addColorControl(panel, 'Label color', state.style.leafLabelColor, (v) => {
     state.style.leafLabelColor = v;
-    renderTree();
+    debouncedRenderTree();
   });
 
   // Show branch lengths
@@ -495,6 +513,68 @@ function escapeHtml(s: string): string {
   const div = document.createElement('div');
   div.textContent = s;
   return div.innerHTML;
+}
+
+/** Debounced render for style controls (avoids re-layout on every slider tick) */
+let styleRenderTimer: ReturnType<typeof setTimeout>;
+function debouncedRenderTree(): void {
+  clearTimeout(styleRenderTimer);
+  styleRenderTimer = setTimeout(renderTree, 80);
+}
+
+/** Setup drag-and-drop support on the viewer and sidebar */
+function setupDragDrop(): void {
+  const viewer = document.getElementById('viewer')!;
+  const sidebar = document.getElementById('sidebar')!;
+
+  for (const el of [viewer, sidebar]) {
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.add('drag-over');
+    });
+
+    el.addEventListener('dragleave', () => {
+      el.classList.remove('drag-over');
+    });
+
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('drag-over');
+
+      const file = e.dataTransfer?.files[0];
+      if (!file) return;
+
+      file.text().then((text) => {
+        const trimmed = text.trim();
+        const ta1 = document.getElementById('newick-input-1') as HTMLTextAreaElement;
+        if (ta1) ta1.value = trimmed;
+        state.newick1 = trimmed;
+        renderTree();
+        showToast('File loaded: ' + file.name);
+      });
+    });
+  }
+}
+
+/** Show tree statistics after rendering */
+function showTreeStats(leafCount: number, maxBranchLen: number): void {
+  // Remove old stats
+  const viewer = document.getElementById('viewer')!;
+  viewer.querySelectorAll('.tree-stats').forEach((el) => el.remove());
+
+  const stats = document.createElement('div');
+  stats.className = 'tree-stats';
+
+  const parts: string[] = [];
+  parts.push(`${leafCount} taxa`);
+  if (maxBranchLen > 0) {
+    parts.push(`max depth: ${maxBranchLen < 0.001 ? maxBranchLen.toExponential(2) : maxBranchLen.toFixed(4)}`);
+  }
+
+  stats.textContent = parts.join('  \u00B7  ');
+  viewer.appendChild(stats);
 }
 
 // Start
