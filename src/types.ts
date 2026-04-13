@@ -65,5 +65,5 @@ export const DEFAULT_STYLE: StyleOptions = {
   showBranchLengths: false,
   showInternalLabels: false,
   leafLabelColor: '#1b1b1b',
-  fontFamily: "'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  fontFamily: "'Source Sans Pro', 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
 };

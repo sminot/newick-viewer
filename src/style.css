@@ -8,23 +8,43 @@
 :root {
   --sidebar-width: 320px;
   --toolbar-height: 48px;
-  --ncbi-blue: #205493;
-  --ncbi-blue-hover: #1a4480;
-  --ncbi-blue-light: #d9e8f6;
-  --ncbi-dark: #1b1b1b;
-  --ncbi-teal-bar: #205493;
+
+  /* NCBI Blue palette (from ncbi/standards2 _variables.scss) */
+  --ncbi-blue: #336699;
+  --ncbi-blue-dark: #205493;
+  --ncbi-blue-darkest: #112e51;
+  --ncbi-blue-light: #4773aa;
+  --ncbi-blue-lightest: #dce4ef;
+
+  /* USWDS primary (modern NCBI pages) */
+  --primary: #005ea2;
+  --primary-dark: #1a4480;
+  --primary-darker: #162e51;
+  --primary-light: #d9e8f6;
+  --primary-lightest: #eff6fb;
+
+  /* Gray palette (USWDS gray-cool) */
   --border-color: #dfe1e2;
   --bg-sidebar: #f0f0f0;
   --bg-main: #ffffff;
   --text-primary: #1b1b1b;
   --text-secondary: #565c65;
   --text-muted: #71767a;
-  --link-color: #205493;
-  --link-hover: #1a4480;
-  --error-red: #d54309;
-  --success-green: #00a91c;
-  --font: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'Roboto Mono', 'SF Mono', 'Menlo', 'Consolas', monospace;
+
+  /* Distinctive NCBI portlet/section colors */
+  --ncbi-copper: #985735;
+  --ncbi-portlet-border: #97b0c8;
+  --ncbi-link: #005ea2;
+  --ncbi-link-hover: #1a4480;
+  --ncbi-link-visited: #54278f;
+
+  /* Functional */
+  --error-red: #b50909;
+  --success-green: #2e8540;
+
+  /* Typography */
+  --font: 'Source Sans Pro', 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'Roboto Mono', 'SF Mono', Menlo, Consolas, monospace;
 }
 
 html, body {
@@ -42,13 +62,27 @@ html, body {
   height: 100vh;
 }
 
-/* NCBI-style top accent bar */
-#app::before {
-  content: '';
-  display: block;
-  height: 4px;
-  background: var(--ncbi-teal-bar);
+/* NCBI-style blue header bar */
+#ncbi-bar {
+  height: 32px;
+  background: var(--ncbi-blue);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
   flex-shrink: 0;
+}
+
+#ncbi-bar .ncbi-bar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+#ncbi-bar .ncbi-bar-subtitle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  margin-left: 8px;
 }
 
 /* Toolbar */
@@ -64,12 +98,11 @@ html, body {
 }
 
 #toolbar .app-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--ncbi-blue);
+  color: var(--ncbi-copper);
   margin-right: 20px;
   white-space: nowrap;
-  letter-spacing: -0.01em;
 }
 
 #toolbar .toolbar-group {
@@ -119,28 +152,28 @@ html, body {
 }
 
 #toolbar button.active {
-  background: var(--ncbi-blue);
+  background: var(--primary);
   color: #fff;
-  border-color: var(--ncbi-blue);
+  border-color: var(--primary);
 }
 
 #toolbar button.active:hover {
-  background: var(--ncbi-blue-hover);
-  border-color: var(--ncbi-blue-hover);
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
 }
 
 #toolbar button.btn-secondary {
   background: transparent;
   border-color: transparent;
-  color: var(--link-color);
+  color: var(--ncbi-link);
   font-size: 12px;
   font-weight: 600;
   padding: 4px 8px;
 }
 
 #toolbar button.btn-secondary:hover {
-  background: var(--ncbi-blue-light);
-  color: var(--ncbi-blue-hover);
+  background: var(--primary-light);
+  color: var(--primary-dark);
 }
 
 #toolbar .export-group {
@@ -183,8 +216,10 @@ html, body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-secondary);
+  color: var(--ncbi-copper);
   margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--ncbi-portlet-border);
 }
 
 #sidebar label {
@@ -218,8 +253,8 @@ html, body {
 
 #sidebar textarea:focus {
   outline: none;
-  border-color: var(--ncbi-blue);
-  box-shadow: 0 0 0 2px var(--ncbi-blue-light);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
 }
 
 #sidebar textarea::placeholder {
@@ -251,14 +286,14 @@ html, body {
 }
 
 #sidebar button.primary {
-  background: var(--ncbi-blue);
+  background: var(--primary);
   color: #fff;
-  border-color: var(--ncbi-blue);
+  border-color: var(--primary);
 }
 
 #sidebar button.primary:hover {
-  background: var(--ncbi-blue-hover);
-  border-color: var(--ncbi-blue-hover);
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
 }
 
 #sidebar input[type="color"] {
@@ -275,7 +310,7 @@ html, body {
   width: 90px;
   height: 18px;
   cursor: pointer;
-  accent-color: var(--ncbi-blue);
+  accent-color: var(--primary);
 }
 
 #sidebar input[type="number"] {
@@ -291,15 +326,15 @@ html, body {
 
 #sidebar input[type="number"]:focus {
   outline: none;
-  border-color: var(--ncbi-blue);
-  box-shadow: 0 0 0 2px var(--ncbi-blue-light);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
 }
 
 #sidebar input[type="checkbox"] {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--ncbi-blue);
+  accent-color: var(--primary);
 }
 
 #sidebar .file-input-wrapper {
@@ -321,8 +356,8 @@ html, body {
 }
 
 #sidebar .file-input-label:hover {
-  border-color: var(--ncbi-blue);
-  color: var(--ncbi-blue);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 #sidebar .file-input-wrapper input[type="file"] {
@@ -341,7 +376,7 @@ html, body {
 
 #sidebar .example-link {
   font-size: 12px;
-  color: var(--link-color);
+  color: var(--ncbi-link);
   cursor: pointer;
   text-decoration: underline;
   margin-top: 4px;
@@ -349,7 +384,7 @@ html, body {
 }
 
 #sidebar .example-link:hover {
-  color: var(--link-hover);
+  color: var(--ncbi-link-hover);
 }
 
 /* Viewer */
@@ -426,13 +461,13 @@ html, body {
 
 /* Drag and drop indicator */
 .drag-over {
-  outline: 2px dashed var(--ncbi-blue) !important;
+  outline: 2px dashed var(--primary) !important;
   outline-offset: -4px;
 }
 
-/* Focus visible for accessibility */
+/* Focus visible for accessibility (USWDS uses #2491ff outline) */
 button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--ncbi-blue);
+  outline: 2px solid #2491ff;
   outline-offset: 2px;
 }
 
@@ -454,7 +489,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   margin-top: 8px;
 }
 
-/* Error display */
+/* Error display (USWDS alert pattern: left border accent) */
 .error-message {
   background: #fef2f2;
   border: 1px solid #f3c7c7;
@@ -474,7 +509,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--ncbi-dark);
+  background: var(--text-primary);
   color: #fff;
   padding: 10px 20px;
   border-radius: 4px;
