@@ -8,6 +8,7 @@ export interface TanglegramOptions {
   tree2: TreeNode;
   style: StyleOptions;
   tanglegramStyle: TanglegramStyle;
+  onNodeFlip?: () => void;
 }
 
 /**
@@ -145,6 +146,34 @@ export class TanglegramRenderer {
       .attr('cy', (d) => d.y)
       .attr('r', 2)
       .attr('fill', style.branchColor);
+
+    // Clickable internal node circles (for flipping child order)
+    const internalNodes = layout.nodes.filter((n) => n.node.children.length > 0);
+    const flipCallback = this.options.onNodeFlip;
+    if (flipCallback) {
+      group.selectAll('circle.internal-node')
+        .data(internalNodes)
+        .enter()
+        .append('circle')
+        .attr('class', 'internal-node')
+        .attr('cx', (d) => d.x)
+        .attr('cy', (d) => d.y)
+        .attr('r', 5)
+        .attr('fill', 'transparent')
+        .attr('stroke', 'transparent')
+        .attr('stroke-width', 1)
+        .attr('cursor', 'pointer')
+        .on('mouseenter', function () {
+          d3.select(this).attr('fill', '#dfe1e2').attr('stroke', '#71767a');
+        })
+        .on('mouseleave', function () {
+          d3.select(this).attr('fill', 'transparent').attr('stroke', 'transparent');
+        })
+        .on('click', function (_event, d) {
+          d.node.children.reverse();
+          flipCallback();
+        });
+    }
 
     // Measure label bounding boxes to find the end of each label
     const labelEnds = new Map<string, { x: number; y: number }>();

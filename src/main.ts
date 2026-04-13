@@ -119,6 +119,10 @@ function renderTree(): void {
         tree2,
         style: state.style,
         tanglegramStyle: state.tanglegramStyle,
+        onNodeFlip: () => {
+          // Trees were mutated in place, just re-render the tanglegram
+          currentTanglegram!.render();
+        },
       });
     } else {
       // Single tree mode
@@ -132,6 +136,11 @@ function renderTree(): void {
         layout,
         style: state.style,
         layoutType: state.layout,
+        onNodeFlip: () => {
+          // tree1 was mutated in place (children reversed), just re-layout and re-render
+          const newLayout = computeLayout(tree1, state.layout, w, treeHeight);
+          currentRenderer!.render(newLayout);
+        },
       });
 
       // Auto-fit if the tree is taller than the viewer

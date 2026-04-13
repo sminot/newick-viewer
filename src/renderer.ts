@@ -1,6 +1,5 @@
 import * as d3 from 'd3';
-import { LayoutResult, StyleOptions, LayoutType } from './types';
-import { getMaxBranchLength } from './newick-parser';
+import { LayoutResult, LayoutNode, StyleOptions, LayoutType, TreeNode } from './types';
 
 /** Format leaf names: replace underscores with spaces (Newick convention) */
 function formatLeafName(name: string): string {
@@ -12,6 +11,8 @@ export interface RendererOptions {
   layout: LayoutResult;
   style: StyleOptions;
   layoutType: LayoutType;
+  /** Called when a user clicks an internal node to flip its children */
+  onNodeFlip?: (node: TreeNode) => void;
 }
 
 export class TreeRenderer {
@@ -22,11 +23,13 @@ export class TreeRenderer {
   private style: StyleOptions;
   private layoutType: LayoutType;
   private currentLayout: LayoutResult | null = null;
+  private onNodeFlip?: (node: TreeNode) => void;
 
   constructor(private options: RendererOptions) {
     this.container = options.container;
     this.style = options.style;
     this.layoutType = options.layoutType;
+    this.onNodeFlip = options.onNodeFlip;
     this.init();
     this.render(options.layout);
   }
@@ -233,6 +236,33 @@ export class TreeRenderer {
       .attr('cy', (d) => d.y)
       .attr('r', 2)
       .attr('fill', this.style.branchColor);
+
+    // Clickable internal node circles (for flipping child order)
+    const flipCallback = this.onNodeFlip;
+    if (flipCallback) {
+      nodeGroup.selectAll('circle.internal-node')
+        .data(internalNodes)
+        .enter()
+        .append('circle')
+        .attr('class', 'internal-node')
+        .attr('cx', (d) => d.x)
+        .attr('cy', (d) => d.y)
+        .attr('r', 5)
+        .attr('fill', 'transparent')
+        .attr('stroke', 'transparent')
+        .attr('stroke-width', 1)
+        .attr('cursor', 'pointer')
+        .on('mouseenter', function () {
+          d3.select(this).attr('fill', '#dfe1e2').attr('stroke', '#71767a');
+        })
+        .on('mouseleave', function () {
+          d3.select(this).attr('fill', 'transparent').attr('stroke', 'transparent');
+        })
+        .on('click', function (_event, d) {
+          d.node.children.reverse();
+          flipCallback(d.node);
+        });
+    }
 
     // Scale bar (rectangular layout only, when branch lengths exist)
     if (this.layoutType === 'rectangular') {
