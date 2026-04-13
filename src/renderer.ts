@@ -201,8 +201,21 @@ export class TreeRenderer {
         .enter()
         .append('text')
         .attr('class', 'branch-length')
-        .attr('x', (d) => ((d.x + (d.parentX ?? d.x)) / 2))
-        .attr('y', (d) => ((d.y + (d.parentY ?? d.y)) / 2) - 4)
+        .attr('x', (d) => {
+          if (this.layoutType === 'rectangular') {
+            // Position along the horizontal segment of the elbow connector
+            return ((d.x + (d.parentX ?? d.x)) / 2);
+          }
+          // Radial: midpoint between node and parent
+          return ((d.x + (d.parentX ?? d.x)) / 2);
+        })
+        .attr('y', (d) => {
+          if (this.layoutType === 'rectangular') {
+            // The horizontal segment is at the child's Y, offset label above it
+            return d.y - 4;
+          }
+          return ((d.y + (d.parentY ?? d.y)) / 2) - 4;
+        })
         .attr('text-anchor', 'middle')
         .attr('font-size', (this.style.internalLabelSize - 1) + 'px')
         .attr('font-family', this.style.fontFamily)
