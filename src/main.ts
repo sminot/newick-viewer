@@ -23,12 +23,15 @@ function init(): void {
   buildInputPanel();
   buildControlsPanel();
   renderTree();
-  showPlaceholderIfEmpty();
 
-  // Listen for resize
+  // Debounced resize handler
   const viewer = document.getElementById('viewer')!;
+  let resizeTimer: ReturnType<typeof setTimeout>;
   const ro = new ResizeObserver(() => {
-    if (state.newick1) renderTree();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (state.newick1) renderTree();
+    }, 150);
   });
   ro.observe(viewer);
 }
