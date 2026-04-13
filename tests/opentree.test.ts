@@ -81,18 +81,26 @@ describe('Open Tree of Life API', () => {
   });
 
   describe('getSubtree', () => {
-    it('returns a Newick subtree for Hominidae', async () => {
-      // Hominidae OTT ID: 770311
-      const result = await getSubtree(770311, 3);
+    it('returns a Newick subtree for Carnivora', async () => {
+      // Carnivora OTT ID: 44565
+      const result = await getSubtree(44565, 2);
       expect(result.newick).toBeTruthy();
       expect(result.newick).toContain('(');
       expect(result.newick).toContain(')');
+    }, TIMEOUT);
+
+    it('handles broken taxa by falling back to MRCA', async () => {
+      // Hominidae (770311) is known to be "broken" in the synthetic tree.
+      // The client should fall back to the MRCA node and still return a tree.
+      const result = await getSubtree(770311, 2);
+      expect(result.newick).toBeTruthy();
+      expect(result.newick).toContain('(');
     }, TIMEOUT);
   });
 
   describe('searchAndGetSubtree', () => {
     it('searches by name and returns a Newick tree', async () => {
-      const result = await searchAndGetSubtree('Felidae', 2);
+      const result = await searchAndGetSubtree('Carnivora', 2);
       expect(result.newick).toBeTruthy();
       expect(result.newick).toContain('(');
       expect(result.ottId).toBeGreaterThan(0);

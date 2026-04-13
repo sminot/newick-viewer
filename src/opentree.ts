@@ -123,7 +123,8 @@ export async function getInducedSubtree(
   };
 }
 
-/** Get a subtree rooted at a specific OTT ID (returns Newick) */
+/** Get a subtree rooted at a specific OTT ID (returns Newick).
+ *  If the taxon is "broken" in the synthetic tree, falls back to the MRCA node. */
 export async function getSubtree(
   ottId: number,
   heightLimit: number = 3,
@@ -141,7 +142,31 @@ export async function getSubtree(
   });
 
   if (!resp.ok) {
+    // Check for "broken taxon" error — the API provides an MRCA node to retry with
     const text = await resp.text();
+    try {
+      const errData = JSON.parse(text);
+      if (errData.broken && errData.mrca) {
+        // Retry with the MRCA node_id
+        const retryResp = await fetch(`${API_BASE}/tree_of_life/subtree`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            node_id: errData.mrca,
+            format: 'newick',
+            label_format: labelFormat,
+            height_limit: heightLimit,
+          }),
+        });
+        if (retryResp.ok) {
+          const retryData = await retryResp.json();
+          return {
+            newick: retryData.newick ?? '',
+            supporting_studies: retryData.supporting_studies ?? [],
+          };
+        }
+      }
+    } catch { /* fall through to original error */ }
     throw new Error(`OpenTree subtree failed (${resp.status}): ${text}`);
   }
 
