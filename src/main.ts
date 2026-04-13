@@ -6,6 +6,7 @@ import { TanglegramRenderer } from './tanglegram';
 import { ViewState, DEFAULT_STYLE } from './types';
 import { getStateFromURL, setStateInURL, getShareableURL, defaultViewState } from './state';
 import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
+import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './opentree';
 
 // Example trees for demo
 const EXAMPLE_TREE_1 = '((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,Hylobates_lar:0.0220):0.0033):0.0350,(Macaca_mulatta:0.0370,Papio_anubis:0.0365):0.0150);';
@@ -20,6 +21,7 @@ function init(): void {
   state = getStateFromURL() ?? defaultViewState();
 
   buildToolbar();
+  buildOpenTreePanel();
   buildInputPanel();
   buildControlsPanel();
   setupDragDrop();
@@ -266,6 +268,221 @@ function addSeparator(parent: HTMLElement): void {
   const sep = document.createElement('div');
   sep.className = 'toolbar-separator';
   parent.appendChild(sep);
+}
+
+function buildOpenTreePanel(): void {
+  const panel = document.getElementById('opentree-panel')!;
+  panel.innerHTML = '';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = 'Open Tree of Life';
+  panel.appendChild(h3);
+
+  // Search mode: subtree (single taxon) or induced (multiple taxa)
+  const modeRow = document.createElement('div');
+  modeRow.className = 'input-row';
+  modeRow.style.marginBottom = '8px';
+
+  const modeLabel = document.createElement('span');
+  modeLabel.style.fontSize = '12px';
+  modeLabel.style.color = 'var(--text-secondary)';
+  modeLabel.textContent = 'Mode:';
+
+  const modeSelect = document.createElement('select');
+  modeSelect.className = 'sidebar-select';
+  modeSelect.innerHTML = '<option value="subtree">Subtree (single taxon)</option><option value="induced">Induced tree (multiple taxa)</option>';
+  modeSelect.style.flex = '1';
+
+  modeRow.append(modeLabel, modeSelect);
+  panel.appendChild(modeRow);
+
+  // Search input with autocomplete
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.id = 'opentree-search';
+  searchInput.placeholder = 'Search taxon name...';
+  searchInput.className = 'opentree-search-input';
+  panel.appendChild(searchInput);
+
+  // Autocomplete dropdown
+  const dropdown = document.createElement('div');
+  dropdown.className = 'opentree-dropdown';
+  dropdown.id = 'opentree-dropdown';
+  panel.appendChild(dropdown);
+
+  // Selected taxa list (for induced subtree mode)
+  const selectedDiv = document.createElement('div');
+  selectedDiv.id = 'opentree-selected';
+  selectedDiv.className = 'opentree-selected';
+  panel.appendChild(selectedDiv);
+
+  // Depth limit (for subtree mode)
+  const depthRow = document.createElement('label');
+  depthRow.id = 'opentree-depth-row';
+  const depthSpan = document.createElement('span');
+  depthSpan.textContent = 'Depth limit';
+  const depthInput = document.createElement('input');
+  depthInput.type = 'number';
+  depthInput.id = 'opentree-depth';
+  depthInput.min = '1';
+  depthInput.max = '10';
+  depthInput.value = '3';
+  depthRow.append(depthSpan, depthInput);
+  panel.appendChild(depthRow);
+
+  // Load button
+  const btnRow = document.createElement('div');
+  btnRow.className = 'input-row';
+  const btnLoad = document.createElement('button');
+  btnLoad.className = 'primary';
+  btnLoad.textContent = 'Load from OpenTree';
+  btnLoad.id = 'opentree-load';
+  btnRow.appendChild(btnLoad);
+  panel.appendChild(btnRow);
+
+  // Status/error area
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'opentree-status';
+  panel.appendChild(statusDiv);
+
+  // --- Wire up interactions ---
+  const selectedTaxa: { name: string; ott_id: number }[] = [];
+  let debounceTimer: ReturnType<typeof setTimeout>;
+
+  function renderSelected() {
+    selectedDiv.innerHTML = '';
+    if (modeSelect.value !== 'induced' || selectedTaxa.length === 0) return;
+    for (const taxon of selectedTaxa) {
+      const tag = document.createElement('span');
+      tag.className = 'opentree-tag';
+      tag.textContent = taxon.name;
+      const removeBtn = document.createElement('span');
+      removeBtn.className = 'opentree-tag-remove';
+      removeBtn.textContent = '\u00d7';
+      removeBtn.addEventListener('click', () => {
+        const idx = selectedTaxa.indexOf(taxon);
+        if (idx >= 0) selectedTaxa.splice(idx, 1);
+        renderSelected();
+      });
+      tag.appendChild(removeBtn);
+      selectedDiv.appendChild(tag);
+    }
+  }
+
+  function updateModeVisibility() {
+    const depthRowEl = document.getElementById('opentree-depth-row')!;
+    depthRowEl.style.display = modeSelect.value === 'subtree' ? '' : 'none';
+    renderSelected();
+  }
+
+  modeSelect.addEventListener('change', updateModeVisibility);
+  updateModeVisibility();
+
+  // Autocomplete on typing
+  searchInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const query = searchInput.value.trim();
+    if (query.length < 2) {
+      dropdown.innerHTML = '';
+      dropdown.style.display = 'none';
+      return;
+    }
+    debounceTimer = setTimeout(async () => {
+      try {
+        const results = await autocompleteName(query);
+        dropdown.innerHTML = '';
+        if (results.length === 0) {
+          dropdown.style.display = 'none';
+          return;
+        }
+        for (const r of results.slice(0, 10)) {
+          const item = document.createElement('div');
+          item.className = 'opentree-dropdown-item';
+          item.textContent = r.unique_name;
+          if (r.is_higher) {
+            const badge = document.createElement('span');
+            badge.className = 'opentree-badge';
+            badge.textContent = 'clade';
+            item.appendChild(badge);
+          }
+          item.addEventListener('click', () => {
+            if (modeSelect.value === 'induced') {
+              if (!selectedTaxa.some((t) => t.ott_id === r.ott_id)) {
+                selectedTaxa.push({ name: r.unique_name, ott_id: r.ott_id });
+                renderSelected();
+              }
+              searchInput.value = '';
+            } else {
+              searchInput.value = r.unique_name;
+              searchInput.dataset.ottId = String(r.ott_id);
+            }
+            dropdown.innerHTML = '';
+            dropdown.style.display = 'none';
+          });
+          dropdown.appendChild(item);
+        }
+        dropdown.style.display = '';
+      } catch {
+        dropdown.innerHTML = '';
+        dropdown.style.display = 'none';
+      }
+    }, 250);
+  });
+
+  // Close dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target as Node)) {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  // Load button
+  btnLoad.addEventListener('click', async () => {
+    const statusEl = document.getElementById('opentree-status')!;
+    statusEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Loading...</div>';
+    btnLoad.disabled = true;
+
+    try {
+      let newick: string;
+
+      if (modeSelect.value === 'induced') {
+        if (selectedTaxa.length < 2) {
+          throw new Error('Select at least 2 taxa for an induced subtree');
+        }
+        const ottIds = selectedTaxa.map((t) => t.ott_id);
+        const result = await getInducedSubtree(ottIds);
+        newick = result.newick;
+      } else {
+        // Subtree mode
+        const ottIdStr = searchInput.dataset.ottId;
+        if (!ottIdStr) {
+          // Try matching the text input
+          const matches = await matchNames([searchInput.value.trim()]);
+          if (matches.length === 0) throw new Error('No matching taxon found');
+          searchInput.dataset.ottId = String(matches[0].ott_id);
+        }
+        const ottId = parseInt(searchInput.dataset.ottId!, 10);
+        const depth = parseInt((document.getElementById('opentree-depth') as HTMLInputElement).value, 10) || 3;
+        const result = await getSubtree(ottId, depth);
+        newick = result.newick;
+      }
+
+      if (!newick) throw new Error('Empty tree returned from OpenTree');
+
+      // Load into the main textarea and render
+      state.newick1 = newick;
+      const ta1 = document.getElementById('newick-input-1') as HTMLTextAreaElement;
+      if (ta1) ta1.value = newick;
+      renderTree();
+
+      statusEl.innerHTML = '<div style="font-size:12px;color:var(--success-green,#2e8540);margin-top:6px;">Tree loaded successfully</div>';
+      setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+    } catch (e: any) {
+      statusEl.innerHTML = `<div class="error-message">${escapeHtml(e.message || 'Failed to load from OpenTree')}</div>`;
+    } finally {
+      btnLoad.disabled = false;
+    }
+  });
 }
 
 function buildInputPanel(): void {

@@ -27,6 +27,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: OpenTree API tests
+        run: npm run test:api
+
       - name: Build
         run: npm run build
 

@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:api": "vitest run --config vitest.api.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "lint": "tsc --noEmit"

@@ -373,6 +373,93 @@ html, body {
   color: var(--link-hover);
 }
 
+/* OpenTree search */
+.opentree-search-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: var(--font);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.opentree-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.opentree-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.opentree-dropdown {
+  display: none;
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: #fff;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.opentree-dropdown-item {
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opentree-dropdown-item:hover {
+  background: var(--primary-lightest, #eff6fb);
+}
+
+.opentree-badge {
+  font-size: 10px;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.opentree-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.opentree-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.opentree-tag-remove {
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+.opentree-tag-remove:hover {
+  opacity: 1;
+}
+
 /* Viewer */
 #viewer {
   flex: 1;
