@@ -58,12 +58,12 @@ export interface ViewState {
 }
 
 export const DEFAULT_STYLE: StyleOptions = {
-  branchColor: '#333333',
+  branchColor: '#1b1b1b',
   branchWidth: 1.5,
-  leafLabelSize: 12,
-  internalLabelSize: 10,
+  leafLabelSize: 13,
+  internalLabelSize: 11,
   showBranchLengths: false,
   showInternalLabels: false,
-  leafLabelColor: '#111111',
-  fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+  leafLabelColor: '#1b1b1b',
+  fontFamily: "'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
 };

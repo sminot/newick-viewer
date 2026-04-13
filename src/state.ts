@@ -9,12 +9,21 @@ export function encodeState(state: ViewState): string {
   return LZString.compressToEncodedURIComponent(json);
 }
 
-/** Decode a URL-safe string back into view state */
+/** Decode a URL-safe string back into view state, merging with defaults */
 export function decodeState(encoded: string): ViewState | null {
   try {
     const json = LZString.decompressFromEncodedURIComponent(encoded);
     if (!json) return null;
-    return JSON.parse(json) as ViewState;
+    const parsed = JSON.parse(json);
+    // Merge with defaults to handle missing fields from older URLs
+    const defaults = defaultViewState();
+    return {
+      newick1: parsed.newick1 ?? defaults.newick1,
+      newick2: parsed.newick2 ?? defaults.newick2,
+      layout: parsed.layout ?? defaults.layout,
+      tanglegram: parsed.tanglegram ?? defaults.tanglegram,
+      style: { ...defaults.style, ...(parsed.style ?? {}) },
+    };
   } catch {
     return null;
   }
