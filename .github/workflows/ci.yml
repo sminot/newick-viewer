@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   # Lightweight checks for PRs and branches
   check:
@@ -36,7 +40,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Full e2e tests — on push to main, and on PRs that modify e2e or src
+  # Full e2e tests — on push to main and on PRs
   test-e2e:
     if: >
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
@@ -73,16 +77,11 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Deploy to GitHub Pages (push to main only)
   deploy:
     needs: test-e2e
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -97,14 +96,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist
+          clean-exclude: pr-preview
