@@ -4,7 +4,7 @@
  * that provide Newick data programmatically.
  */
 
-import { parseNewick, getLeafNames, getMaxBranchLength, toNewick } from '../newick-parser';
+import { parseTreeInput, getLeafNames, getMaxBranchLength, toNewick } from '../newick-parser';
 import { computeLayout } from '../layout';
 import { TreeRenderer } from '../renderer';
 import { DEFAULT_STYLE, StyleOptions, LayoutType, TreeNode } from '../types';
@@ -31,7 +31,7 @@ export function renderNewickTree(options: CoreViewerOptions): { destroy: () => v
 
   const style: StyleOptions = { ...DEFAULT_STYLE, ...(options.style ?? {}) };
 
-  const tree = parseNewick(newick);
+  const tree = parseTreeInput(newick);
   const rect = container.getBoundingClientRect();
   const w = rect.width || 900;
   const h = rect.height || 600;

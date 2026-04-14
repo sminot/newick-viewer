@@ -4,7 +4,7 @@ import type { FileSystemObject } from '@cirrobio/sdk';
 import { renderNewickTree } from './core-viewer';
 import { parseCSV, buildTipColorMap, TipColorMap } from '../metadata';
 
-const NEWICK_EXTENSIONS = ['.nwk', '.newick', '.tree', '.nw'];
+const NEWICK_EXTENSIONS = ['.nwk', '.newick', '.tree', '.nw', '.nex', '.nexus', '.nxs'];
 const CSV_EXTENSIONS = ['.csv', '.tsv', '.txt', '.metadata'];
 
 function hasExtension(name: string, exts: string[]): boolean {

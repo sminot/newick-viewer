@@ -1,5 +1,5 @@
 import './style.css';
-import { parseNewick, getLeafNames, getMaxBranchLength, toNewick } from './newick-parser';
+import { parseNewick, parseTreeInput, getLeafNames, getMaxBranchLength, toNewick } from './newick-parser';
 import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
@@ -102,7 +102,7 @@ function renderTree(): void {
   }
 
   try {
-    const tree1 = parseNewick(state.newick1);
+    const tree1 = parseTreeInput(state.newick1);
     const viewerRect = viewer.getBoundingClientRect();
     const w = viewerRect.width || 900;
     const h = viewerRect.height || 600;
@@ -114,7 +114,7 @@ function renderTree(): void {
     if (state.tanglegram && state.newick2) {
       // Tanglegram mode
       if (currentRenderer) { currentRenderer.destroy(); currentRenderer = null; }
-      const tree2 = parseNewick(state.newick2);
+      const tree2 = parseTreeInput(state.newick2);
 
       const leaves2 = getLeafNames(tree2).length;
       const maxLeaves = Math.max(leafCount, leaves2);
@@ -518,7 +518,7 @@ function buildInputPanel(): void {
   // Tree 1 textarea with auto-render on change
   const ta1 = document.createElement('textarea');
   ta1.id = 'newick-input-1';
-  ta1.placeholder = 'Paste Newick format, e.g.:\n((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);';
+  ta1.placeholder = 'Paste Newick or NEXUS format, e.g.:\n((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);';
   ta1.value = state.newick1;
   ta1.rows = 4;
   let inputTimer1: ReturnType<typeof setTimeout>;
@@ -539,7 +539,7 @@ function buildInputPanel(): void {
   fileLabel1.textContent = 'Choose .nwk file or drag & drop';
   const fileInput1 = document.createElement('input');
   fileInput1.type = 'file';
-  fileInput1.accept = '.nwk,.tree,.txt,.newick';
+  fileInput1.accept = '.nwk,.tree,.txt,.newick,.nex,.nexus,.nxs';
   fileInput1.addEventListener('change', () => {
     const file = fileInput1.files?.[0];
     if (file) {
@@ -583,7 +583,7 @@ function buildInputPanel(): void {
     fileLabel2.textContent = 'Choose .nwk file or drag & drop';
     const fileInput2 = document.createElement('input');
     fileInput2.type = 'file';
-    fileInput2.accept = '.nwk,.tree,.txt,.newick';
+    fileInput2.accept = '.nwk,.tree,.txt,.newick,.nex,.nexus,.nxs';
     fileInput2.addEventListener('change', () => {
       const file = fileInput2.files?.[0];
       if (file) {

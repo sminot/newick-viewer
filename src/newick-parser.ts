@@ -1,6 +1,104 @@
 import { TreeNode } from './types';
 
 /**
+ * Auto-detect input format and parse into a tree.
+ * Supports Newick and NEXUS formats.
+ */
+export function parseTreeInput(input: string): TreeNode {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new Error('Empty input');
+  }
+
+  // Detect NEXUS format
+  if (trimmed.toUpperCase().startsWith('#NEXUS')) {
+    const newick = extractNewickFromNexus(trimmed);
+    return parseNewick(newick);
+  }
+
+  // Default: plain Newick
+  return parseNewick(trimmed);
+}
+
+/**
+ * Extract the first Newick tree string from a NEXUS file.
+ *
+ * NEXUS format wraps trees in a TREES block:
+ *   #NEXUS
+ *   BEGIN TREES;
+ *     TREE treename = [&R] ((A,B),(C,D));
+ *   END;
+ *
+ * Also handles TRANSLATE blocks that map numeric IDs to taxon names.
+ */
+export function extractNewickFromNexus(input: string): string {
+  // Normalize line endings
+  const text = input.replace(/\r\n/g, '\n');
+
+  // Find the TREES block (case-insensitive)
+  const treesBlockMatch = text.match(/BEGIN\s+TREES\s*;([\s\S]*?)END\s*;/i);
+  if (!treesBlockMatch) {
+    throw new Error('NEXUS file has no TREES block');
+  }
+  const treesBlock = treesBlockMatch[1];
+
+  // Check for a TRANSLATE block
+  const translateMap = new Map<string, string>();
+  const translateMatch = treesBlock.match(/TRANSLATE\s+([\s\S]*?)\s*;/i);
+  if (translateMatch) {
+    const entries = translateMatch[1].split(',');
+    for (const entry of entries) {
+      const parts = entry.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        const id = parts[0].trim();
+        // Name may be quoted — strip quotes
+        let name = parts.slice(1).join(' ').trim();
+        if ((name.startsWith("'") && name.endsWith("'")) ||
+            (name.startsWith('"') && name.endsWith('"'))) {
+          name = name.slice(1, -1);
+        }
+        translateMap.set(id, name);
+      }
+    }
+  }
+
+  // Find the first TREE statement
+  const treeMatch = treesBlock.match(/TREE\s+\S+\s*=\s*(?:\[&[^\]]*\]\s*)?(.*?;)/i);
+  if (!treeMatch) {
+    throw new Error('NEXUS TREES block has no TREE statement');
+  }
+
+  let newick = treeMatch[1].trim();
+
+  // Apply translate table if present
+  if (translateMap.size > 0) {
+    newick = applyTranslateTable(newick, translateMap);
+  }
+
+  return newick;
+}
+
+/** Replace numeric leaf IDs with taxon names from a NEXUS TRANSLATE block */
+function applyTranslateTable(newick: string, table: Map<string, string>): string {
+  // Replace tokens that are leaf labels (not inside parentheses metadata)
+  // A leaf label is a token that appears after '(' or ',' and before ':' or ',' or ')'
+  return newick.replace(
+    /(?<=[(,])\s*(\d+)\s*(?=[,:)])/g,
+    (_match, id) => {
+      const name = table.get(id.trim());
+      if (name) {
+        // Quote name if it contains special characters
+        if (/[,:;()\s']/.test(name)) {
+          return "'" + name.replace(/'/g, "''") + "'";
+        }
+        return name;
+      }
+      return id;
+    }
+  );
+}
+
+/**
  * Parse a Newick format string into a tree structure.
  *
  * Newick format grammar:

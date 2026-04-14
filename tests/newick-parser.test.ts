@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNewick, toNewick, getLeafNames, countNodes, getMaxDepth, getMaxBranchLength } from '../src/newick-parser';
+import { parseNewick, parseTreeInput, extractNewickFromNexus, toNewick, getLeafNames, countNodes, getMaxDepth, getMaxBranchLength } from '../src/newick-parser';
 
 describe('parseNewick', () => {
   it('parses a simple two-leaf tree', () => {
@@ -209,5 +209,98 @@ describe('getMaxBranchLength', () => {
     const tree = parseNewick('((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);');
     // Longest path: root -> right child (0.6) -> D (0.5) = 1.1
     expect(getMaxBranchLength(tree)).toBeCloseTo(1.1);
+  });
+});
+
+describe('extractNewickFromNexus', () => {
+  it('extracts a simple NEXUS tree', () => {
+    const nexus = `#NEXUS
+BEGIN TREES;
+  TREE tree1 = ((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);
+END;`;
+    const newick = extractNewickFromNexus(nexus);
+    expect(newick).toContain('(');
+    const tree = parseNewick(newick);
+    expect(getLeafNames(tree)).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('handles a TREE statement with rooting annotation', () => {
+    const nexus = `#NEXUS
+BEGIN TREES;
+  TREE tree1 = [&R] ((A,B),(C,D));
+END;`;
+    const newick = extractNewickFromNexus(nexus);
+    const tree = parseNewick(newick);
+    expect(getLeafNames(tree)).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('applies a TRANSLATE block', () => {
+    const nexus = `#NEXUS
+BEGIN TREES;
+  TRANSLATE
+    1 Homo_sapiens,
+    2 Pan_troglodytes,
+    3 Gorilla_gorilla;
+  TREE tree1 = ((1:0.1,2:0.2):0.3,3:0.4);
+END;`;
+    const newick = extractNewickFromNexus(nexus);
+    const tree = parseNewick(newick);
+    const leaves = getLeafNames(tree);
+    expect(leaves).toContain('Homo_sapiens');
+    expect(leaves).toContain('Pan_troglodytes');
+    expect(leaves).toContain('Gorilla_gorilla');
+  });
+
+  it('handles quoted names in TRANSLATE block', () => {
+    const nexus = `#NEXUS
+BEGIN TREES;
+  TRANSLATE
+    1 'Homo sapiens',
+    2 'Pan troglodytes';
+  TREE tree1 = (1:0.1,2:0.2);
+END;`;
+    const newick = extractNewickFromNexus(nexus);
+    const tree = parseNewick(newick);
+    const leaves = getLeafNames(tree);
+    expect(leaves).toContain('Homo sapiens');
+    expect(leaves).toContain('Pan troglodytes');
+  });
+
+  it('is case-insensitive for block keywords', () => {
+    const nexus = `#nexus
+begin trees;
+  tree mytree = (A,B,C);
+end;`;
+    const newick = extractNewickFromNexus(nexus);
+    const tree = parseNewick(newick);
+    expect(getLeafNames(tree)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('throws for NEXUS with no TREES block', () => {
+    expect(() => extractNewickFromNexus('#NEXUS\nBEGIN DATA;\nEND;')).toThrow('no TREES block');
+  });
+
+  it('throws for empty TREES block', () => {
+    expect(() => extractNewickFromNexus('#NEXUS\nBEGIN TREES;\nEND;')).toThrow('no TREE statement');
+  });
+});
+
+describe('parseTreeInput', () => {
+  it('auto-detects and parses Newick', () => {
+    const tree = parseTreeInput('(A,B,C);');
+    expect(getLeafNames(tree)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('auto-detects and parses NEXUS', () => {
+    const nexus = `#NEXUS
+BEGIN TREES;
+  TREE t = ((A,B),C);
+END;`;
+    const tree = parseTreeInput(nexus);
+    expect(getLeafNames(tree)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('throws on empty input', () => {
+    expect(() => parseTreeInput('')).toThrow('Empty');
   });
 });

@@ -21,15 +21,15 @@ A phylogenetic tree is a branching diagram that shows the evolutionary relations
 
 ## Frequently asked questions
 
-### How do I view a Newick tree?
+### How do I view a tree?
 
-Paste your Newick string into the text box on the left side of the page. The tree renders automatically as you type (with a short delay). You can also **drag and drop** a `.nwk`, `.tree`, or `.txt` file anywhere on the page. Click **Load example** to try a built-in primate phylogeny.
+Paste a Newick or NEXUS string into the text box on the left side of the page. The tree renders automatically as you type (with a short delay). You can also **drag and drop** a `.nwk`, `.tree`, `.nex`, `.nexus`, or `.txt` file anywhere on the page. Click **Load example** to try a built-in primate phylogeny.
 
 The sidebar can be collapsed by clicking **Panel** in the toolbar to maximize the viewer area.
 
-### What Newick features are supported?
+### What input formats are supported?
 
-The parser handles the full Newick specification:
+**Newick** — the standard parenthesized tree format. The parser handles:
 
 - Branch lengths (including scientific notation like `1.5e-3`)
 - Quoted labels with special characters (`'Homo sapiens'`)
@@ -37,6 +37,10 @@ The parser handles the full Newick specification:
 - NHX annotations (`[&&NHX:...]`)
 - Bracket comments (including nested)
 - Multifurcating nodes and single-leaf trees
+
+**NEXUS** — the `#NEXUS` container format used by MrBayes, BEAST, FigTree, and Mesquite. The viewer automatically detects NEXUS files, extracts the tree from the `TREES` block, and applies `TRANSLATE` tables that map numeric IDs to taxon names.
+
+The format is detected automatically — just paste or drop the file and it works.
 
 ### What layout options are available?
 

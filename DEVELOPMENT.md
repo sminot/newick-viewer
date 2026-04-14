@@ -57,7 +57,7 @@ npm run dev:cirro
 npm test
 ```
 
-58 tests covering the Newick parser, layout engine, URL state encoding, and CSV metadata parsing. Uses [Vitest](https://vitest.dev/).
+68 tests covering the Newick parser, NEXUS extraction, layout engine, URL state encoding, and CSV metadata parsing. Uses [Vitest](https://vitest.dev/).
 
 ### Open Tree of Life API tests
 
@@ -95,7 +95,7 @@ npm run test:e2e
 ```
 src/
 ├── main.ts            App entry point, UI construction, event wiring
-├── newick-parser.ts   Recursive descent Newick parser + tree editing operations
+├── newick-parser.ts   Newick/NEXUS parser + tree editing operations
 ├── layout.ts          Rectangular and radial layout algorithms
 ├── renderer.ts        D3.js SVG renderer with zoom/pan, scale bar, context menu
 ├── tanglegram.ts      Side-by-side tree comparison renderer
@@ -173,7 +173,7 @@ The Cirro viewer auto-discovers `.nwk`/`.newick`/`.tree` files in the dataset an
 
 ## Architecture notes
 
-**Data flow**: Newick string → `parseNewick()` → `TreeNode` tree → `computeLayout()` → `LayoutResult` (coordinates) → `TreeRenderer` (D3.js SVG).
+**Data flow**: Newick/NEXUS string → `parseTreeInput()` → `TreeNode` tree → `computeLayout()` → `LayoutResult` (coordinates) → `TreeRenderer` (D3.js SVG).
 
 **Auto-sync**: The textarea and the tree visualization are bidirectionally synced. Typing in the textarea triggers a debounced re-parse and re-render. Editing the tree via the context menu serializes the modified tree back to Newick and updates the textarea.
 
