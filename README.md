@@ -1,142 +1,129 @@
-# Newick Tree Viewer
+# Newick Viewer
 
-A static web application for viewing phylogenetic trees from Newick format files. Supports interactive zoom/pan, multiple layout modes, tanglegram comparison, and shareable URLs with full state encoding.
+A free, browser-based tool for visualizing phylogenetic trees from Newick files. No installation, no sign-up, no server — paste your data or drag a file and see your tree instantly.
 
-Built for biomedical researchers.
+Designed for biologists, bioinformaticians, and biomedical researchers who need to quickly inspect, compare, and share phylogenetic trees.
 
-## Features
+## What is a phylogenetic tree?
 
-- **Newick parser** — branch lengths, quoted labels, internal node labels, NHX annotations, bootstrap values
-- **Rectangular layout** — standard dendrogram with elbow connectors and auto-sizing scale bar
-- **Radial layout** — circular tree with rotated labels
-- **Tanglegram** — side-by-side tree comparison with color-coded connections between matching taxa
-- **Interactive** — scroll to zoom, drag to pan, +/−/Fit controls
-- **Style controls** — branch color/width, label size/color, toggle branch lengths and internal labels
-- **Shareable URLs** — all visualization state (tree data + settings) compressed into the URL hash via LZ-string
-- **Export** — standalone HTML (interactive), PDF (print), SVG
-- **Drag & drop** — drop `.nwk` files onto the page to load them
-- **Keyboard shortcuts** — `Ctrl+Enter` to render, `Ctrl+0` to fit to view
+A phylogenetic tree is a branching diagram that shows the evolutionary relationships among species or sequences. The **Newick format** is the most common text representation: nested parentheses encode the tree topology, with optional branch lengths and labels. Example: `((Human:0.1,Chimp:0.1):0.3,Gorilla:0.4);`
 
-## Getting started
+---
 
-### Prerequisites
+## Frequently asked questions
 
-- [Node.js](https://nodejs.org/) 18 or later
-- npm (included with Node.js)
+### How do I view a Newick tree?
 
-### Install dependencies
+Paste your Newick string into the text box on the left side of the page. The tree renders automatically as you type. You can also **drag and drop** a `.nwk`, `.tree`, or `.txt` file anywhere on the page.
 
-```sh
-npm install
-```
+### What Newick features are supported?
 
-### Run the development server
+The parser handles the full Newick specification:
 
-```sh
-npm run dev
-```
+- Branch lengths (including scientific notation like `1.5e-3`)
+- Quoted labels with special characters (`'Homo sapiens'`)
+- Internal node labels and bootstrap values
+- NHX annotations (`[&&NHX:...]`)
+- Bracket comments (including nested)
+- Multifurcating nodes and single-leaf trees
 
-This starts Vite's dev server at `http://localhost:5173/newick-viewer/`. Changes to source files are reflected instantly via hot module replacement.
+### What layout options are available?
 
-### Build for production
+- **Rectangular (dendrogram)**: The standard layout with right-angle elbow connectors and an auto-sizing scale bar showing substitutions per site.
+- **Radial (circular)**: A polar layout that fits more taxa into less space, with labels rotated to follow the circumference.
 
-```sh
-npm run build
-```
+Switch between layouts using the toolbar buttons. Species names display in italic with underscores converted to spaces.
 
-Output is written to `dist/`. To preview the production build locally:
+### Can I compare two trees side by side?
 
-```sh
-npm run preview
-```
+Yes. Click **Tanglegram** in the toolbar. Two input boxes appear for your two Newick trees. Matching leaf names are connected by curved lines across the gap. You can control:
 
-This serves the built site at `http://localhost:4173/newick-viewer/`.
+- **Tree spacing**: How much gap between the two trees
+- **Connection color**: Single color or multi-color mode
+- **Connection width**: Line thickness
+- **Line style**: Solid, dashed, or dotted
 
-## Usage
+### Can I edit the tree interactively?
 
-1. **Paste a Newick string** into the sidebar textarea, or **drag and drop** a `.nwk` / `.tree` / `.txt` file onto the page.
-2. Click **Display tree** (or press `Ctrl+Enter`).
-3. Use the toolbar to switch between **Rectangular** and **Radial** layouts.
-4. Enable **Tanglegram** mode to compare two trees side by side.
-5. Adjust display settings in the sidebar (colors, line widths, label sizes, annotation toggles).
-6. Click **Copy link** to get a shareable URL that encodes the full visualization state.
-7. **Export** the tree as SVG, standalone HTML, or PDF.
+Yes. The tree and the text box stay in sync — edits in either direction are reflected immediately.
 
-### Example Newick strings
+**Left-click** an internal node to flip the order of its children.
 
-Simple tree:
-```
-((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);
-```
+**Right-click** any node to open a context menu with:
 
-Primate phylogeny:
-```
-((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,
-Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,
-Hylobates_lar:0.0220):0.0033):0.0350,(Macaca_mulatta:0.0370,
-Papio_anubis:0.0365):0.0150);
-```
+- **Flip children**: Reverse child order at this node
+- **Ladderize (large first / small first)**: Sort the subtree by descending or ascending leaf count
+- **Remove node**: Prune this taxon or clade from the tree
+- **Keep only this clade**: Extract this subtree, discarding everything else
+- **Reroot here**: Reroot the tree at this node
 
-Or click **Load example** in the app to try a built-in demo.
+All edits update the Newick text in the sidebar so you can copy the modified tree.
 
-## Running tests
+### Can I search for trees from a database?
 
-### Unit tests
+Yes. The **Open Tree of Life** panel in the sidebar lets you search the [Open Tree of Life](https://opentreeoflife.github.io/) taxonomy and load published phylogenies directly:
 
-```sh
-npm test
-```
+- **Subtree mode**: Search for a clade (e.g., "Mammalia") and load its subtree at a configurable depth
+- **Induced tree mode**: Select multiple taxa by name and get the tree that relates them
 
-Runs 47 tests with [Vitest](https://vitest.dev/) covering the Newick parser, layout engine, and URL state encoding.
+Results are autocompleted as you type.
 
-### End-to-end tests
+### How do I share a tree with someone?
 
-```sh
-npx playwright install --with-deps chromium
-npm run test:e2e
-```
+Click **Copy link** in the toolbar. The URL encodes the complete visualization state — tree data, layout mode, all display settings, and tanglegram configuration — compressed into the URL hash. Anyone who opens the link sees the exact same view. No server, no database, no account required.
 
-Runs 14 Playwright tests against a production build. The web server is started automatically. Tests cover tree rendering, layout switching, tanglegram mode, URL state persistence, style controls, and error handling.
+### What export formats are available?
 
-## Project structure
+- **SVG**: Vector graphics file, editable in Illustrator or Inkscape
+- **HTML**: A standalone interactive page with zoom and pan, viewable in any browser without a server
+- **PDF**: Opens the browser print dialog for saving or printing (landscape orientation, publication-ready)
 
-```
-src/
-├── main.ts            App entry point, UI construction, event wiring
-├── newick-parser.ts   Recursive descent Newick parser
-├── layout.ts          Rectangular and radial layout algorithms
-├── renderer.ts        D3.js SVG renderer with zoom/pan and scale bar
-├── tanglegram.ts      Side-by-side tree comparison renderer
-├── state.ts           URL state encoding/decoding (LZ-string)
-├── export.ts          SVG, HTML, and PDF export
-├── types.ts           TypeScript interfaces and defaults
-└── style.css          Global styles
+### How do I customize the appearance?
 
-tests/                 Vitest unit tests
-e2e/                   Playwright integration tests
-.github/workflows/     CI: lint + test on PRs, full e2e + deploy on main
-```
+The **Display Settings** panel in the sidebar provides:
 
-## Deployment
+- **Branch color** and **width**
+- **Label size** and **color**
+- **Show branch lengths**: Toggle numeric branch length annotations along branches
+- **Show internal labels**: Toggle bootstrap values or clade names at internal nodes
 
-The app deploys to GitHub Pages automatically when commits are pushed to `main`. The CI pipeline runs type-checking and unit tests on every PR; full Playwright e2e tests and deployment run only on `main`.
+Changes apply instantly. All settings are preserved in shareable URLs.
 
-To deploy manually:
+### Does it work offline?
 
-```sh
-npm run build
-# Upload the contents of dist/ to any static hosting
-```
+Yes. Once the page is loaded, everything runs in your browser. The only feature that requires network access is the Open Tree of Life search.
 
-The `base` path in `vite.config.ts` is set to `/newick-viewer/`. Change this if deploying to a different path.
+### What are the keyboard shortcuts?
 
-## Tech stack
+| Shortcut | Action |
+|----------|--------|
+| Scroll wheel | Zoom in/out |
+| Click + drag | Pan |
+| `Ctrl+Enter` | Re-render from textarea |
+| `Ctrl+0` | Fit tree to view |
 
-| Concern | Tool |
-|---------|------|
-| Build | [Vite](https://vitejs.dev/) + TypeScript |
-| Rendering | [D3.js](https://d3js.org/) (SVG) |
-| URL state | [lz-string](https://github.com/pieroxy/lz-string) |
-| Unit tests | [Vitest](https://vitest.dev/) |
-| E2E tests | [Playwright](https://playwright.dev/) |
-| CI/CD | GitHub Actions → GitHub Pages |
+The viewer also has +/&minus;/Fit buttons in the bottom-right corner.
+
+### How large of a tree can it handle?
+
+The viewer renders trees with hundreds of taxa comfortably. For very large trees (1000+ leaves), the rectangular layout auto-scales the canvas height and provides fit-to-view. Performance depends on your browser and screen size.
+
+### Is my data private?
+
+Yes. Your tree data never leaves your browser. There is no server, no analytics, no tracking. The shareable URL contains the data itself (compressed), not a reference to a stored copy.
+
+---
+
+## Who is this for?
+
+- **Bench biologists** who receive tree files from collaborators and need a quick way to view them
+- **Bioinformaticians** who want to inspect pipeline output without installing desktop software
+- **Students and educators** learning about phylogenetics and evolutionary relationships
+- **Reviewers** checking supplementary tree figures in manuscripts
+- **Anyone** who needs to share a tree visualization via a URL
+
+---
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, testing, and deployment details.
