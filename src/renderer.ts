@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import { LayoutResult, LayoutNode, StyleOptions, LayoutType, TreeNode } from './types';
 import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
+import type { TipColorMap } from './metadata';
 
 /** Format leaf names: replace underscores with spaces (Newick convention) */
 function formatLeafName(name: string): string {
@@ -14,10 +15,10 @@ export interface RendererOptions {
   layout: LayoutResult;
   style: StyleOptions;
   layoutType: LayoutType;
-  /** Called when the tree has been edited. Passes the (possibly new) root. */
   onTreeEdit?: (newRoot: TreeNode, action: TreeEditAction) => void;
-  /** The root TreeNode, needed for operations like prune/reroot */
   root?: TreeNode;
+  /** Optional tip color map from CSV metadata */
+  tipColorMap?: TipColorMap | null;
 }
 
 export class TreeRenderer {
@@ -31,6 +32,7 @@ export class TreeRenderer {
   private onTreeEdit?: (newRoot: TreeNode, action: TreeEditAction) => void;
   private root?: TreeNode;
   private contextMenu: HTMLElement | null = null;
+  private tipColorMap?: TipColorMap | null;
 
   constructor(private options: RendererOptions) {
     this.container = options.container;
@@ -38,6 +40,7 @@ export class TreeRenderer {
     this.layoutType = options.layoutType;
     this.onTreeEdit = options.onTreeEdit;
     this.root = options.root;
+    this.tipColorMap = options.tipColorMap;
     this.init();
     this.render(options.layout);
   }
@@ -138,6 +141,13 @@ export class TreeRenderer {
     const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
     const internalNodes = layout.nodes.filter((n) => n.node.children.length > 0);
 
+    // Tip color lookup: check both raw name and underscore-to-space variants
+    const tcm = this.tipColorMap?.colorByTip;
+    const tipColor = (name: string): string => {
+      if (!tcm) return this.style.leafLabelColor;
+      return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? this.style.leafLabelColor;
+    };
+
     if (this.layoutType === 'rectangular') {
       nodeGroup.selectAll('text.leaf-label')
         .data(leafNodes)
@@ -150,7 +160,7 @@ export class TreeRenderer {
         .attr('text-anchor', 'start')
         .attr('font-size', this.style.leafLabelSize + 'px')
         .attr('font-family', this.style.fontFamily)
-        .attr('fill', this.style.leafLabelColor)
+        .attr('fill', (d) => tipColor(d.node.name))
         .attr('font-style', 'italic')
         .text((d) => formatLeafName(d.node.name));
     } else {
@@ -181,7 +191,7 @@ export class TreeRenderer {
         })
         .attr('font-size', this.style.leafLabelSize + 'px')
         .attr('font-family', this.style.fontFamily)
-        .attr('fill', this.style.leafLabelColor)
+        .attr('fill', (d) => tipColor(d.node.name))
         .attr('font-style', 'italic')
         .text((d) => formatLeafName(d.node.name));
     }
@@ -234,7 +244,8 @@ export class TreeRenderer {
         .text((d) => d.node.branchLength?.toFixed(4) ?? '');
     }
 
-    // Leaf node dots
+    // Leaf node dots (colored by metadata if available)
+    const hasTipColors = tcm && tcm.size > 0;
     nodeGroup.selectAll('circle.leaf-node')
       .data(leafNodes)
       .enter()
@@ -242,8 +253,13 @@ export class TreeRenderer {
       .attr('class', 'leaf-node')
       .attr('cx', (d) => d.x)
       .attr('cy', (d) => d.y)
-      .attr('r', 2)
-      .attr('fill', this.style.branchColor);
+      .attr('r', hasTipColors ? 4 : 2)
+      .attr('fill', (d) => tipColor(d.node.name));
+
+    // Legend (when tip colors are active)
+    if (hasTipColors && this.tipColorMap?.legend) {
+      this.renderLegend(layout);
+    }
 
     // Interactive node hit targets (click to flip, right-click for context menu)
     const allClickableNodes = [...internalNodes, ...leafNodes];
@@ -290,6 +306,46 @@ export class TreeRenderer {
     if (this.layoutType === 'rectangular') {
       this.renderScaleBar(layout);
     }
+  }
+
+  private renderLegend(layout: LayoutResult): void {
+    if (!this.tipColorMap?.legend.length) return;
+
+    const legendGroup = this.g.append('g').attr('class', 'legend');
+    const x0 = layout.width - 140;
+    const y0 = 20;
+    const rowHeight = 18;
+    const dotR = 6;
+
+    // Semi-transparent background
+    const bgHeight = this.tipColorMap.legend.length * rowHeight + 12;
+    legendGroup.append('rect')
+      .attr('x', x0 - 10)
+      .attr('y', y0 - 6)
+      .attr('width', 150)
+      .attr('height', bgHeight)
+      .attr('rx', 4)
+      .attr('fill', 'rgba(255,255,255,0.9)')
+      .attr('stroke', '#dfe1e2')
+      .attr('stroke-width', 1);
+
+    this.tipColorMap.legend.forEach((item, i) => {
+      const y = y0 + i * rowHeight + 6;
+      legendGroup.append('circle')
+        .attr('cx', x0)
+        .attr('cy', y)
+        .attr('r', dotR)
+        .attr('fill', item.color);
+
+      legendGroup.append('text')
+        .attr('x', x0 + dotR + 6)
+        .attr('y', y)
+        .attr('dy', '0.35em')
+        .attr('font-size', '11px')
+        .attr('font-family', this.style.fontFamily)
+        .attr('fill', '#1b1b1b')
+        .text(item.category);
+    });
   }
 
   private renderScaleBar(layout: LayoutResult): void {

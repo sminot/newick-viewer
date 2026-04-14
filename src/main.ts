@@ -7,6 +7,7 @@ import { ViewState, DEFAULT_STYLE, TreeNode } from './types';
 import { getStateFromURL, setStateInURL, getShareableURL, defaultViewState } from './state';
 import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
 import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './opentree';
+import { parseCSV, buildTipColorMap, MetadataTable, TipColorMap } from './metadata';
 
 // Example trees for demo
 const EXAMPLE_TREE_1 = '((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,Hylobates_lar:0.0220):0.0033):0.0350,(Macaca_mulatta:0.0370,Papio_anubis:0.0365):0.0150);';
@@ -16,6 +17,12 @@ let state: ViewState;
 let currentRenderer: TreeRenderer | null = null;
 let currentTanglegram: TanglegramRenderer | null = null;
 
+// Metadata state (runtime only, not persisted in URL — CSV data can be large)
+let metadataTable: MetadataTable | null = null;
+let currentTipColorMap: TipColorMap | null = null;
+let metadataIdColumn: string = '';
+let metadataCategoryColumn: string = '';
+
 function init(): void {
   // Try to restore state from URL
   state = getStateFromURL() ?? defaultViewState();
@@ -23,6 +30,7 @@ function init(): void {
   buildToolbar();
   buildOpenTreePanel();
   buildInputPanel();
+  buildMetadataPanel();
   buildControlsPanel();
   setupDragDrop();
   renderTree();
@@ -137,6 +145,7 @@ function renderTree(): void {
         style: state.style,
         layoutType: state.layout,
         root: tree1,
+        tipColorMap: currentTipColorMap,
         onTreeEdit: (newRoot) => {
           // Update state and textarea with the (possibly new) root
           const newick = toNewick(newRoot) + ';';
@@ -616,6 +625,119 @@ function buildInputPanel(): void {
   const errDiv = document.createElement('div');
   errDiv.id = 'error-display';
   panel.appendChild(errDiv);
+}
+
+function buildMetadataPanel(): void {
+  const panel = document.getElementById('metadata-panel')!;
+  panel.innerHTML = '';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = 'Tip Metadata';
+  panel.appendChild(h3);
+
+  if (!metadataTable) {
+    // Upload prompt
+    const desc = document.createElement('div');
+    desc.style.cssText = 'font-size:12px;color:var(--text-muted);margin-bottom:8px;';
+    desc.textContent = 'Upload a CSV or TSV file to color tips by category. The file should have a column matching tip names and a column for the category.';
+    panel.appendChild(desc);
+
+    const fileDiv = document.createElement('div');
+    fileDiv.className = 'file-input-wrapper';
+    const fileLabel = document.createElement('label');
+    fileLabel.className = 'file-input-label';
+    fileLabel.textContent = 'Choose .csv or .tsv file';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.csv,.tsv,.txt';
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      file.text().then((text) => {
+        try {
+          metadataTable = parseCSV(text);
+          // Auto-select first column as ID, second as category
+          if (metadataTable.headers.length >= 2) {
+            metadataIdColumn = metadataTable.headers[0];
+            metadataCategoryColumn = metadataTable.headers[1];
+            currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
+          }
+          buildMetadataPanel();
+          renderTree();
+        } catch (e: any) {
+          panel.innerHTML += `<div class="error-message">${escapeHtml(e.message)}</div>`;
+        }
+      });
+    });
+    fileLabel.appendChild(fileInput);
+    fileDiv.appendChild(fileLabel);
+    panel.appendChild(fileDiv);
+  } else {
+    // Column selectors
+    const idRow = document.createElement('label');
+    const idSpan = document.createElement('span');
+    idSpan.textContent = 'Tip ID column';
+    const idSelect = document.createElement('select');
+    idSelect.className = 'sidebar-select';
+    idSelect.style.flex = '1';
+    for (const h of metadataTable.headers) {
+      const opt = document.createElement('option');
+      opt.value = h;
+      opt.textContent = h;
+      if (h === metadataIdColumn) opt.selected = true;
+      idSelect.appendChild(opt);
+    }
+    idRow.append(idSpan, idSelect);
+    panel.appendChild(idRow);
+
+    const catRow = document.createElement('label');
+    const catSpan = document.createElement('span');
+    catSpan.textContent = 'Category column';
+    const catSelect = document.createElement('select');
+    catSelect.className = 'sidebar-select';
+    catSelect.style.flex = '1';
+    for (const h of metadataTable.headers) {
+      const opt = document.createElement('option');
+      opt.value = h;
+      opt.textContent = h;
+      if (h === metadataCategoryColumn) opt.selected = true;
+      catSelect.appendChild(opt);
+    }
+    catRow.append(catSpan, catSelect);
+    panel.appendChild(catRow);
+
+    // Update on column change
+    const updateColors = () => {
+      metadataIdColumn = idSelect.value;
+      metadataCategoryColumn = catSelect.value;
+      currentTipColorMap = buildTipColorMap(metadataTable!, metadataIdColumn, metadataCategoryColumn);
+      renderTree();
+    };
+    idSelect.addEventListener('change', updateColors);
+    catSelect.addEventListener('change', updateColors);
+
+    // Stats
+    const stats = document.createElement('div');
+    stats.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:6px;';
+    const nCategories = currentTipColorMap?.legend.length ?? 0;
+    const nMapped = currentTipColorMap?.colorByTip.size ?? 0;
+    stats.textContent = `${nMapped} tips mapped, ${nCategories} categories`;
+    panel.appendChild(stats);
+
+    // Clear button
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'Clear metadata';
+    clearBtn.style.marginTop = '8px';
+    clearBtn.addEventListener('click', () => {
+      metadataTable = null;
+      currentTipColorMap = null;
+      metadataIdColumn = '';
+      metadataCategoryColumn = '';
+      buildMetadataPanel();
+      renderTree();
+    });
+    panel.appendChild(clearBtn);
+  }
 }
 
 function buildControlsPanel(): void {
