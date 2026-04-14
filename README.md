@@ -1,5 +1,12 @@
 # Newick Viewer
 
+[![CI](https://github.com/sminot/newick-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/sminot/newick-viewer/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/sminot/newick-viewer/actions/workflows/codeql.yml/badge.svg)](https://github.com/sminot/newick-viewer/actions/workflows/codeql.yml)
+[![npm audit](https://img.shields.io/badge/npm_audit-passing-brightgreen)](https://github.com/sminot/newick-viewer/actions/workflows/ci.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub Pages](https://img.shields.io/badge/demo-GitHub_Pages-blue?logo=github)](https://sminot.github.io/newick-viewer/)
+
 A free, browser-based tool for visualizing phylogenetic trees from Newick files. No installation, no sign-up, no server — paste your data or drag a file and see your tree instantly.
 
 Designed for biologists, bioinformaticians, and biomedical researchers who need to quickly inspect, compare, and share phylogenetic trees.

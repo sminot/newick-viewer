@@ -2,6 +2,7 @@
   "name": "newick-viewer",
   "version": "1.0.0",
   "description": "Interactive phylogenetic tree viewer for Newick format files",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
