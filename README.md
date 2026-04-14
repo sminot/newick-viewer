@@ -9,6 +9,8 @@
 
 A free, browser-based tool for visualizing phylogenetic trees from Newick files. No installation, no sign-up, no server — paste your data or drag a file and see your tree instantly.
 
+**Try it now: [sminot.github.io/newick-viewer](https://sminot.github.io/newick-viewer/)**
+
 Designed for biologists, bioinformaticians, and biomedical researchers who need to quickly inspect, compare, and share phylogenetic trees.
 
 ## What is a phylogenetic tree?
