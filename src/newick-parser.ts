@@ -227,3 +227,117 @@ export function getMaxBranchLength(node: TreeNode): number {
     )
   );
 }
+
+// --- Tree editing operations ---
+
+/** Remove a node from its parent. Promotes the sibling if only one remains. */
+export function pruneNode(root: TreeNode, target: TreeNode): TreeNode | null {
+  if (root === target) return null; // Can't prune root
+
+  function removeFromParent(parent: TreeNode): boolean {
+    const idx = parent.children.indexOf(target);
+    if (idx >= 0) {
+      parent.children.splice(idx, 1);
+      // If parent now has exactly 1 child, merge it into the parent
+      if (parent.children.length === 1) {
+        const only = parent.children[0];
+        // Combine branch lengths
+        only.branchLength =
+          (parent.branchLength ?? 0) + (only.branchLength ?? 0) || null;
+        // Replace parent in grandparent
+        replaceInParent(root, parent, only);
+      }
+      return true;
+    }
+    return parent.children.some(removeFromParent);
+  }
+
+  removeFromParent(root);
+  // If root itself was reduced to a single child, promote that child
+  if (root.children.length === 1) {
+    const only = root.children[0];
+    only.branchLength = null; // Root has no branch length
+    return only;
+  }
+  return root;
+}
+
+/** Replace `oldNode` with `newNode` in the tree rooted at `root` */
+function replaceInParent(root: TreeNode, oldNode: TreeNode, newNode: TreeNode): void {
+  function walk(parent: TreeNode): boolean {
+    const idx = parent.children.indexOf(oldNode);
+    if (idx >= 0) {
+      parent.children[idx] = newNode;
+      return true;
+    }
+    return parent.children.some(walk);
+  }
+  // If oldNode IS the root, we can't replace via parent traversal
+  if (root === oldNode) return;
+  walk(root);
+}
+
+/** Extract a subtree rooted at the given node (deep copy) */
+export function extractSubtree(node: TreeNode): TreeNode {
+  return JSON.parse(JSON.stringify(node));
+}
+
+/** Reroot the tree at the given internal node */
+export function rerootAt(root: TreeNode, target: TreeNode): TreeNode {
+  if (root === target) return root;
+
+  // Find path from root to target
+  const path: TreeNode[] = [];
+  function findPath(node: TreeNode): boolean {
+    path.push(node);
+    if (node === target) return true;
+    for (const child of node.children) {
+      if (findPath(child)) return true;
+    }
+    path.pop();
+    return false;
+  }
+  if (!findPath(root)) return root; // target not found
+
+  // Walk the path and reverse parent-child relationships
+  for (let i = 0; i < path.length - 1; i++) {
+    const parent = path[i];
+    const child = path[i + 1];
+
+    // Remove child from parent
+    const idx = parent.children.indexOf(child);
+    if (idx >= 0) parent.children.splice(idx, 1);
+
+    // Add parent as child of the next node in path
+    child.children.push(parent);
+
+    // Swap branch lengths: parent gets child's old branch length
+    const tmp = parent.branchLength;
+    parent.branchLength = child.branchLength;
+    child.branchLength = tmp;
+  }
+
+  // New root has no branch length
+  target.branchLength = null;
+
+  return target;
+}
+
+/** Sort children by descending leaf count (ladderize) */
+export function ladderize(node: TreeNode, ascending: boolean = false): void {
+  for (const child of node.children) {
+    ladderize(child, ascending);
+  }
+  if (node.children.length > 1) {
+    node.children.sort((a, b) => {
+      const ca = countLeaves(a);
+      const cb = countLeaves(b);
+      return ascending ? ca - cb : cb - ca;
+    });
+  }
+}
+
+function countLeaves(node: TreeNode): number {
+  if (node.children.length === 0) return 1;
+  return node.children.reduce((sum, c) => sum + countLeaves(c), 0);
+}

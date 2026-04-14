@@ -1,9 +1,9 @@
 import './style.css';
-import { parseNewick, getLeafNames, getMaxBranchLength } from './newick-parser';
+import { parseNewick, getLeafNames, getMaxBranchLength, toNewick } from './newick-parser';
 import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
-import { ViewState, DEFAULT_STYLE } from './types';
+import { ViewState, DEFAULT_STYLE, TreeNode } from './types';
 import { getStateFromURL, setStateInURL, getShareableURL, defaultViewState } from './state';
 import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
 import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './opentree';
@@ -120,7 +120,7 @@ function renderTree(): void {
         style: state.style,
         tanglegramStyle: state.tanglegramStyle,
         onNodeFlip: () => {
-          // Trees were mutated in place, just re-render the tanglegram
+          syncTreeToTextarea(tree1, tree2);
           currentTanglegram!.render();
         },
       });
@@ -136,10 +136,14 @@ function renderTree(): void {
         layout,
         style: state.style,
         layoutType: state.layout,
-        onNodeFlip: () => {
-          // tree1 was mutated in place (children reversed), just re-layout and re-render
-          const newLayout = computeLayout(tree1, state.layout, w, treeHeight);
-          currentRenderer!.render(newLayout);
+        root: tree1,
+        onTreeEdit: (newRoot) => {
+          // Update state and textarea with the (possibly new) root
+          const newick = toNewick(newRoot) + ';';
+          state.newick1 = newick;
+          syncTextarea('newick-input-1', newick);
+          // Full re-render (tree structure may have changed)
+          renderTree();
         },
       });
 
@@ -502,12 +506,20 @@ function buildInputPanel(): void {
   h3.textContent = state.tanglegram ? 'Tree 1 (Newick)' : 'Newick Input';
   panel.appendChild(h3);
 
-  // Tree 1 textarea
+  // Tree 1 textarea with auto-render on change
   const ta1 = document.createElement('textarea');
   ta1.id = 'newick-input-1';
   ta1.placeholder = 'Paste Newick format, e.g.:\n((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);';
   ta1.value = state.newick1;
   ta1.rows = 4;
+  let inputTimer1: ReturnType<typeof setTimeout>;
+  ta1.addEventListener('input', () => {
+    clearTimeout(inputTimer1);
+    inputTimer1 = setTimeout(() => {
+      state.newick1 = ta1.value.trim();
+      renderTree();
+    }, 400);
+  });
   panel.appendChild(ta1);
 
   // File upload for tree 1
@@ -545,6 +557,14 @@ function buildInputPanel(): void {
     ta2.placeholder = '((C:0.3,A:0.1):0.2,(B:0.4,D:0.5):0.6);';
     ta2.value = state.newick2;
     ta2.rows = 4;
+    let inputTimer2: ReturnType<typeof setTimeout>;
+    ta2.addEventListener('input', () => {
+      clearTimeout(inputTimer2);
+      inputTimer2 = setTimeout(() => {
+        state.newick2 = ta2.value.trim();
+        renderTree();
+      }, 400);
+    });
     panel.appendChild(ta2);
 
     const fileDiv2 = document.createElement('div');
@@ -574,18 +594,6 @@ function buildInputPanel(): void {
   const btnRow = document.createElement('div');
   btnRow.className = 'input-row';
 
-  const btnRender = document.createElement('button');
-  btnRender.className = 'primary';
-  btnRender.textContent = 'Display tree';
-  btnRender.addEventListener('click', () => {
-    state.newick1 = ta1.value.trim();
-    if (state.tanglegram) {
-      const ta2El = document.getElementById('newick-input-2') as HTMLTextAreaElement;
-      state.newick2 = ta2El?.value.trim() ?? '';
-    }
-    renderTree();
-  });
-
   const btnExample = document.createElement('button');
   btnExample.textContent = 'Load example';
   btnExample.addEventListener('click', () => {
@@ -601,7 +609,7 @@ function buildInputPanel(): void {
     renderTree();
   });
 
-  btnRow.append(btnRender, btnExample);
+  btnRow.append(btnExample);
   panel.appendChild(btnRow);
 
   // Error display area
@@ -802,6 +810,20 @@ function addSelectControl(
   select.addEventListener('change', () => onChange(select.value));
   row.append(span, select);
   parent.appendChild(row);
+}
+
+/** Update a textarea's value without triggering input events */
+function syncTextarea(id: string, value: string): void {
+  const el = document.getElementById(id) as HTMLTextAreaElement;
+  if (el) el.value = value;
+}
+
+/** Sync both tree textareas after a tanglegram edit */
+function syncTreeToTextarea(tree1: TreeNode, tree2: TreeNode): void {
+  state.newick1 = toNewick(tree1) + ';';
+  state.newick2 = toNewick(tree2) + ';';
+  syncTextarea('newick-input-1', state.newick1);
+  syncTextarea('newick-input-2', state.newick2);
 }
 
 function showError(message: string): void {

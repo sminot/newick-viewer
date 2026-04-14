@@ -1,18 +1,23 @@
 import * as d3 from 'd3';
 import { LayoutResult, LayoutNode, StyleOptions, LayoutType, TreeNode } from './types';
+import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
 
 /** Format leaf names: replace underscores with spaces (Newick convention) */
 function formatLeafName(name: string): string {
   return name.replace(/_/g, ' ');
 }
 
+export type TreeEditAction = 'flip' | 'prune' | 'keep' | 'reroot' | 'ladderize-desc' | 'ladderize-asc';
+
 export interface RendererOptions {
   container: HTMLElement;
   layout: LayoutResult;
   style: StyleOptions;
   layoutType: LayoutType;
-  /** Called when a user clicks an internal node to flip its children */
-  onNodeFlip?: (node: TreeNode) => void;
+  /** Called when the tree has been edited. Passes the (possibly new) root. */
+  onTreeEdit?: (newRoot: TreeNode, action: TreeEditAction) => void;
+  /** The root TreeNode, needed for operations like prune/reroot */
+  root?: TreeNode;
 }
 
 export class TreeRenderer {
@@ -23,13 +28,16 @@ export class TreeRenderer {
   private style: StyleOptions;
   private layoutType: LayoutType;
   private currentLayout: LayoutResult | null = null;
-  private onNodeFlip?: (node: TreeNode) => void;
+  private onTreeEdit?: (newRoot: TreeNode, action: TreeEditAction) => void;
+  private root?: TreeNode;
+  private contextMenu: HTMLElement | null = null;
 
   constructor(private options: RendererOptions) {
     this.container = options.container;
     this.style = options.style;
     this.layoutType = options.layoutType;
-    this.onNodeFlip = options.onNodeFlip;
+    this.onTreeEdit = options.onTreeEdit;
+    this.root = options.root;
     this.init();
     this.render(options.layout);
   }
@@ -237,31 +245,45 @@ export class TreeRenderer {
       .attr('r', 2)
       .attr('fill', this.style.branchColor);
 
-    // Clickable internal node circles (for flipping child order)
-    const flipCallback = this.onNodeFlip;
-    if (flipCallback) {
-      nodeGroup.selectAll('circle.internal-node')
-        .data(internalNodes)
+    // Interactive node hit targets (click to flip, right-click for context menu)
+    const allClickableNodes = [...internalNodes, ...leafNodes];
+    const editCallback = this.onTreeEdit;
+    const root = this.root;
+    const self = this;
+
+    if (editCallback && root) {
+      nodeGroup.selectAll('circle.node-target')
+        .data(allClickableNodes)
         .enter()
         .append('circle')
-        .attr('class', 'internal-node')
+        .attr('class', 'node-target')
         .attr('cx', (d) => d.x)
         .attr('cy', (d) => d.y)
-        .attr('r', 5)
+        .attr('r', 6)
         .attr('fill', 'transparent')
         .attr('stroke', 'transparent')
         .attr('stroke-width', 1)
         .attr('cursor', 'pointer')
         .on('mouseenter', function () {
-          d3.select(this).attr('fill', '#dfe1e2').attr('stroke', '#71767a');
+          d3.select(this).attr('fill', 'rgba(0,0,0,0.06)').attr('stroke', '#71767a');
         })
         .on('mouseleave', function () {
           d3.select(this).attr('fill', 'transparent').attr('stroke', 'transparent');
         })
         .on('click', function (_event, d) {
-          d.node.children.reverse();
-          flipCallback(d.node);
+          if (d.node.children.length > 0) {
+            d.node.children.reverse();
+            editCallback(root, 'flip');
+          }
+        })
+        .on('contextmenu', function (event, d) {
+          event.preventDefault();
+          event.stopPropagation();
+          self.showContextMenu(event.clientX, event.clientY, d.node, root);
         });
+
+      // Dismiss context menu on click elsewhere
+      this.svg.on('click.context', () => this.dismissContextMenu());
     }
 
     // Scale bar (rectangular layout only, when branch lengths exist)
@@ -381,7 +403,96 @@ export class TreeRenderer {
     );
   }
 
+  private showContextMenu(x: number, y: number, node: TreeNode, root: TreeNode): void {
+    this.dismissContextMenu();
+    const menu = document.createElement('div');
+    menu.className = 'tree-context-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+
+    const isInternal = node.children.length > 0;
+    const isRoot = node === root;
+    const nodeName = node.name
+      ? node.name.replace(/_/g, ' ')
+      : (isInternal ? 'this clade' : 'this leaf');
+
+    const items: { label: string; action: TreeEditAction; disabled?: boolean }[] = [];
+
+    if (isInternal) {
+      items.push({ label: 'Flip children', action: 'flip' });
+      items.push({ label: 'Ladderize (large first)', action: 'ladderize-desc' });
+      items.push({ label: 'Ladderize (small first)', action: 'ladderize-asc' });
+    }
+    if (!isRoot) {
+      items.push({ label: `Remove ${nodeName}`, action: 'prune' });
+    }
+    if (isInternal && !isRoot) {
+      items.push({ label: `Keep only ${nodeName}`, action: 'keep' });
+      items.push({ label: `Reroot here`, action: 'reroot' });
+    }
+
+    for (const item of items) {
+      const el = document.createElement('div');
+      el.className = 'tree-context-menu-item';
+      el.textContent = item.label;
+      el.addEventListener('click', () => {
+        this.dismissContextMenu();
+        this.executeAction(item.action, node, root);
+      });
+      menu.appendChild(el);
+    }
+
+    document.body.appendChild(menu);
+    this.contextMenu = menu;
+
+    // Keep menu in viewport
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) menu.style.left = (x - rect.width) + 'px';
+      if (rect.bottom > window.innerHeight) menu.style.top = (y - rect.height) + 'px';
+    });
+  }
+
+  private dismissContextMenu(): void {
+    if (this.contextMenu) {
+      this.contextMenu.remove();
+      this.contextMenu = null;
+    }
+  }
+
+  private executeAction(action: TreeEditAction, node: TreeNode, root: TreeNode): void {
+    if (!this.onTreeEdit) return;
+
+    let newRoot = root;
+    switch (action) {
+      case 'flip':
+        node.children.reverse();
+        break;
+      case 'ladderize-desc':
+        ladderize(node, false);
+        break;
+      case 'ladderize-asc':
+        ladderize(node, true);
+        break;
+      case 'prune': {
+        const result = pruneNode(root, node);
+        if (!result) return; // Can't prune root
+        newRoot = result;
+        break;
+      }
+      case 'keep':
+        newRoot = extractSubtree(node);
+        newRoot.branchLength = null;
+        break;
+      case 'reroot':
+        newRoot = rerootAt(root, node);
+        break;
+    }
+    this.onTreeEdit(newRoot, action);
+  }
+
   destroy(): void {
+    this.dismissContextMenu();
     d3.select(this.container).selectAll('*').remove();
   }
 }

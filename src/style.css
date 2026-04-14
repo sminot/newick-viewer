@@ -479,6 +479,32 @@ html, body {
   cursor: grabbing;
 }
 
+/* Context menu */
+.tree-context-menu {
+  position: fixed;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  min-width: 180px;
+  font-family: var(--font);
+}
+
+.tree-context-menu-item {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tree-context-menu-item:hover {
+  background: var(--primary-lightest, #eff6fb);
+  color: var(--primary-dark);
+}
+
 /* Zoom controls */
 .zoom-controls {
   position: absolute;
