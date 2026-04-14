@@ -23,7 +23,9 @@ A phylogenetic tree is a branching diagram that shows the evolutionary relations
 
 ### How do I view a Newick tree?
 
-Paste your Newick string into the text box on the left side of the page. The tree renders automatically as you type. You can also **drag and drop** a `.nwk`, `.tree`, or `.txt` file anywhere on the page.
+Paste your Newick string into the text box on the left side of the page. The tree renders automatically as you type (with a short delay). You can also **drag and drop** a `.nwk`, `.tree`, or `.txt` file anywhere on the page. Click **Load example** to try a built-in primate phylogeny.
+
+The sidebar can be collapsed by clicking **Panel** in the toolbar to maximize the viewer area.
 
 ### What Newick features are supported?
 
@@ -68,6 +70,12 @@ Yes. The tree and the text box stay in sync — edits in either direction are re
 
 All edits update the Newick text in the sidebar so you can copy the modified tree.
 
+### Can I color tips by metadata?
+
+Yes. Upload a CSV or TSV file in the **Tip Metadata** panel in the sidebar. The file should have one column with tip names (matching the tree labels) and another column with a category to color by. Select the appropriate columns from the dropdowns and tips are colored instantly using a categorical palette. A legend appears in the top-right corner of the visualization.
+
+Tip name matching is flexible — it handles underscores vs. spaces and other common naming variations.
+
 ### Can I search for trees from a database?
 
 Yes. The **Open Tree of Life** panel in the sidebar lets you search the [Open Tree of Life](https://opentreeoflife.github.io/) taxonomy and load published phylogenies directly:
@@ -76,6 +84,10 @@ Yes. The **Open Tree of Life** panel in the sidebar lets you search the [Open Tr
 - **Induced tree mode**: Select multiple taxa by name and get the tree that relates them
 
 Results are autocompleted as you type.
+
+### Can I use this inside the Cirro data platform?
+
+Yes. The viewer can be deployed as an embedded tool inside [Cirro](https://cirro.bio) using the `@cirrobio/react-tool` framework. When registered as a Cirro app, it auto-discovers `.nwk` files in a dataset and lets users view them without leaving the Cirro interface. See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions.
 
 ### How do I share a tree with someone?
 
@@ -108,10 +120,11 @@ Yes. Once the page is loaded, everything runs in your browser. The only feature 
 |----------|--------|
 | Scroll wheel | Zoom in/out |
 | Click + drag | Pan |
-| `Ctrl+Enter` | Re-render from textarea |
+| Left-click node | Flip children |
+| Right-click node | Editing context menu |
 | `Ctrl+0` | Fit tree to view |
 
-The viewer also has +/&minus;/Fit buttons in the bottom-right corner.
+The viewer also has +/−/Fit buttons in the bottom-right corner.
 
 ### How large of a tree can it handle?
 
@@ -120,6 +133,16 @@ The viewer renders trees with hundreds of taxa comfortably. For very large trees
 ### Is my data private?
 
 Yes. Your tree data never leaves your browser. There is no server, no analytics, no tracking. The shareable URL contains the data itself (compressed), not a reference to a stored copy.
+
+### How do I report problems or suggest improvements?
+
+Use the [GitHub Issues](https://github.com/sminot/newick-viewer/issues) page:
+
+- **Bug reports**: Describe what you expected vs. what happened. Include the Newick string that caused the problem if possible, or a shareable URL that reproduces the issue.
+- **Feature requests**: Open an issue describing what you'd like and why it would be useful. Label it as an enhancement.
+- **Questions**: Open an issue with the "question" label if something isn't working as expected or the documentation is unclear.
+
+Pull requests are also welcome. See [DEVELOPMENT.md](DEVELOPMENT.md) for setup instructions.
 
 ---
 
@@ -135,4 +158,4 @@ Yes. Your tree data never leaves your browser. There is no server, no analytics,
 
 ## Development
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, testing, and deployment details.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, testing, deployment, and Cirro integration details.
