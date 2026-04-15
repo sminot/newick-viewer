@@ -155,12 +155,15 @@ function renderTree(): void {
   try {
     const tree1 = parseTreeInput(state.newick1);
     const viewerRect = viewer.getBoundingClientRect();
-    const w = viewerRect.width || 900;
-    const h = viewerRect.height || 600;
+    const autoW = viewerRect.width || 900;
+    const autoH = viewerRect.height || 600;
 
-    // Compute tree dimensions based on leaf count
+    // Use user-specified dimensions or auto-compute from viewer/leaf count
     const leafCount = getLeafNames(tree1).length;
-    const treeHeight = Math.max(h, leafCount * (state.style.leafLabelSize + 8));
+    const w = state.style.canvasWidth > 0 ? state.style.canvasWidth : autoW;
+    const treeHeight = state.style.canvasHeight > 0
+      ? state.style.canvasHeight
+      : Math.max(autoH, leafCount * (state.style.leafLabelSize + 8));
 
     if (state.tanglegram && state.newick2) {
       // Tanglegram mode
@@ -169,7 +172,7 @@ function renderTree(): void {
 
       const leaves2 = getLeafNames(tree2).length;
       const maxLeaves = Math.max(leafCount, leaves2);
-      const tangleHeight = Math.max(h, maxLeaves * (state.style.leafLabelSize + 8));
+      const tangleHeight = Math.max(autoH, maxLeaves * (state.style.leafLabelSize + 8));
 
       if (currentTanglegram) currentTanglegram.destroy();
       currentTanglegram = new TanglegramRenderer({
@@ -209,7 +212,7 @@ function renderTree(): void {
       });
 
       // Auto-fit if the tree is taller than the viewer
-      if (treeHeight > h) {
+      if (treeHeight > autoH) {
         currentRenderer.fitToView(layout);
       }
     }
@@ -854,6 +857,22 @@ function buildControlsPanel(): void {
     state.style.leafLabelColor = v;
     debouncedRenderTree();
   });
+
+  // Canvas dimensions (0 = auto)
+  addRangeControl(panel, 'Canvas width', state.style.canvasWidth, 0, 4000, 100, (v) => {
+    state.style.canvasWidth = v;
+    debouncedRenderTree();
+  });
+
+  addRangeControl(panel, 'Canvas height', state.style.canvasHeight, 0, 4000, 100, (v) => {
+    state.style.canvasHeight = v;
+    debouncedRenderTree();
+  });
+
+  const dimHint = document.createElement('div');
+  dimHint.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:-4px;margin-bottom:4px;';
+  dimHint.textContent = '0 = auto-fit to viewer';
+  panel.appendChild(dimHint);
 
   // Separator between style and toggle controls
   const controlsSep = document.createElement('div');

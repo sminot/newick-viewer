@@ -58,6 +58,10 @@ export interface StyleOptions {
   showInternalLabels: boolean;
   leafLabelColor: string;
   fontFamily: string;
+  /** Canvas width override (0 = auto from viewer size) */
+  canvasWidth: number;
+  /** Canvas height override (0 = auto from leaf count) */
+  canvasHeight: number;
 }
 
 export interface ViewState {
@@ -86,4 +90,6 @@ export const DEFAULT_STYLE: StyleOptions = {
   showInternalLabels: false,
   leafLabelColor: '#1b1b1b',
   fontFamily: "'Source Sans Pro', 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  canvasWidth: 0,
+  canvasHeight: 0,
 };
