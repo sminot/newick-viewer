@@ -272,12 +272,18 @@ export function parseNewick(input: string): TreeNode {
 }
 
 /** Serialize a tree back to Newick format */
+/** Serialize a tree back to Newick format (without trailing semicolon).
+ *  Includes root branch length if present. */
 export function toNewick(node: TreeNode): string {
+  return toNewickInternal(node, true);
+}
+
+function toNewickInternal(node: TreeNode, isRoot: boolean): string {
   let result = '';
   if (node.children.length > 0) {
     result += '(';
     result += node.children.map((child) => {
-      let s = toNewick(child);
+      let s = toNewickInternal(child, false);
       if (child.branchLength !== null) {
         s += ':' + child.branchLength;
       }
@@ -285,14 +291,16 @@ export function toNewick(node: TreeNode): string {
     }).join(',');
     result += ')';
   }
-  // Escape name if it contains special characters
   if (node.name) {
     if (/[,:;()\s'\[\]]/.test(node.name)) {
-      // Double any embedded single quotes per Newick convention
       result += "'" + node.name.replace(/'/g, "''") + "'";
     } else {
       result += node.name;
     }
+  }
+  // Include root branch length if present (only at the top level)
+  if (isRoot && node.branchLength !== null) {
+    result += ':' + node.branchLength;
   }
   return result;
 }
@@ -339,9 +347,10 @@ export function pruneNode(root: TreeNode, target: TreeNode): TreeNode | null {
       // If parent now has exactly 1 child, merge it into the parent
       if (parent.children.length === 1) {
         const only = parent.children[0];
-        // Combine branch lengths
-        only.branchLength =
-          (parent.branchLength ?? 0) + (only.branchLength ?? 0) || null;
+        // Combine branch lengths (preserve null only if both are null)
+        if (parent.branchLength !== null || only.branchLength !== null) {
+          only.branchLength = (parent.branchLength ?? 0) + (only.branchLength ?? 0);
+        }
         // Replace parent in grandparent
         replaceInParent(root, parent, only);
       }
@@ -395,24 +404,31 @@ export function rerootAt(root: TreeNode, target: TreeNode): TreeNode {
     path.pop();
     return false;
   }
-  if (!findPath(root)) return root; // target not found
+  if (!findPath(root)) return root;
 
-  // Walk the path and reverse parent-child relationships
+  // Collect the branch lengths along path edges BEFORE mutating anything.
+  // edgeLengths[i] = branch length on the edge from path[i] to path[i+1],
+  // which is stored as path[i+1].branchLength.
+  const edgeLengths: (number | null)[] = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    edgeLengths.push(path[i + 1].branchLength);
+  }
+
+  // Reverse parent-child relationships along the path
   for (let i = 0; i < path.length - 1; i++) {
     const parent = path[i];
     const child = path[i + 1];
 
-    // Remove child from parent
+    // Remove child from parent's children
     const idx = parent.children.indexOf(child);
     if (idx >= 0) parent.children.splice(idx, 1);
 
-    // Add parent as child of the next node in path
+    // Add parent as a child of child
     child.children.push(parent);
 
-    // Swap branch lengths: parent gets child's old branch length
-    const tmp = parent.branchLength;
-    parent.branchLength = child.branchLength;
-    child.branchLength = tmp;
+    // The edge that was from parent→child (stored as child.branchLength)
+    // is now from child→parent (stored as parent.branchLength)
+    parent.branchLength = edgeLengths[i];
   }
 
   // New root has no branch length
@@ -421,21 +437,35 @@ export function rerootAt(root: TreeNode, target: TreeNode): TreeNode {
   return target;
 }
 
-/** Sort children by descending leaf count (ladderize) */
+/** Sort children by descending leaf count (ladderize).
+ *  Pre-computes leaf counts to avoid O(n²) from repeated traversals. */
 export function ladderize(node: TreeNode, ascending: boolean = false): void {
-  for (const child of node.children) {
-    ladderize(child, ascending);
-  }
-  if (node.children.length > 1) {
-    node.children.sort((a, b) => {
-      const ca = countLeaves(a);
-      const cb = countLeaves(b);
-      return ascending ? ca - cb : cb - ca;
-    });
-  }
-}
+  const leafCounts = new Map<TreeNode, number>();
 
-function countLeaves(node: TreeNode): number {
-  if (node.children.length === 0) return 1;
-  return node.children.reduce((sum, c) => sum + countLeaves(c), 0);
+  function computeLeafCount(n: TreeNode): number {
+    if (n.children.length === 0) {
+      leafCounts.set(n, 1);
+      return 1;
+    }
+    const count = n.children.reduce((sum, c) => sum + computeLeafCount(c), 0);
+    leafCounts.set(n, count);
+    return count;
+  }
+
+  computeLeafCount(node);
+
+  function sortNode(n: TreeNode): void {
+    for (const child of n.children) {
+      sortNode(child);
+    }
+    if (n.children.length > 1) {
+      n.children.sort((a, b) => {
+        const ca = leafCounts.get(a)!;
+        const cb = leafCounts.get(b)!;
+        return ascending ? ca - cb : cb - ca;
+      });
+    }
+  }
+
+  sortNode(node);
 }

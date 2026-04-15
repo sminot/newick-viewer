@@ -3,6 +3,8 @@
  * https://github.com/OpenTreeOfLife/germinator/wiki/Open-Tree-of-Life-Web-APIs
  */
 
+const REQUEST_TIMEOUT_MS = 30000;
+
 const API_BASE = 'https://api.opentreeoflife.org/v3';
 
 export interface TaxonMatch {
@@ -42,6 +44,7 @@ export async function matchNames(
       names,
       do_approximate_matching: approximate,
     }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!resp.ok) {
@@ -69,7 +72,8 @@ export async function matchNames(
 /** Autocomplete a partial taxon name */
 export async function autocompleteName(
   name: string,
-  context: string = 'All life'
+  context: string = 'All life',
+  signal?: AbortSignal
 ): Promise<AutocompleteResult[]> {
   const resp = await fetch(`${API_BASE}/tnrs/autocomplete_name`, {
     method: 'POST',
@@ -78,6 +82,7 @@ export async function autocompleteName(
       name,
       context_name: context,
     }),
+    signal: signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!resp.ok) {
@@ -109,6 +114,7 @@ export async function getInducedSubtree(
       ott_ids: ottIds,
       label_format: labelFormat,
     }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!resp.ok) {
@@ -139,15 +145,14 @@ export async function getSubtree(
       label_format: labelFormat,
       height_limit: heightLimit,
     }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!resp.ok) {
-    // Check for "broken taxon" error — the API provides an MRCA node to retry with
     const text = await resp.text();
     try {
       const errData = JSON.parse(text);
       if (errData.broken && errData.mrca) {
-        // Retry with the MRCA node_id
         const retryResp = await fetch(`${API_BASE}/tree_of_life/subtree`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,6 +162,7 @@ export async function getSubtree(
             label_format: labelFormat,
             height_limit: heightLimit,
           }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
         if (retryResp.ok) {
           const retryData = await retryResp.json();

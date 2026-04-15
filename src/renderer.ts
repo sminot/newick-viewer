@@ -33,6 +33,7 @@ export class TreeRenderer {
   private root?: TreeNode;
   private contextMenu: HTMLElement | null = null;
   private tipColorMap?: TipColorMap | null;
+  private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: RendererOptions) {
     this.container = options.container;
@@ -66,6 +67,7 @@ export class TreeRenderer {
 
     // Add zoom controls overlay
     this.addZoomControls();
+    this.addSearchBox();
   }
 
   private addZoomControls(): void {
@@ -98,6 +100,66 @@ export class TreeRenderer {
 
     controls.append(btnIn, btnOut, btnFit);
     this.container.appendChild(controls);
+  }
+
+  private addSearchBox(): void {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tree-search';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Search taxa...';
+    input.className = 'tree-search-input';
+
+    let searchTimer: ReturnType<typeof setTimeout>;
+    input.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        const query = input.value.trim().toLowerCase();
+        this.highlightSearch(query);
+      }, 150);
+    });
+
+    wrapper.appendChild(input);
+    this.container.appendChild(wrapper);
+  }
+
+  private highlightSearch(query: string): void {
+    if (!query) {
+      // Clear all highlights
+      this.g.selectAll('text.leaf-label')
+        .attr('font-weight', null)
+        .attr('opacity', null);
+      this.g.selectAll('rect.search-highlight').remove();
+      return;
+    }
+
+    this.g.selectAll('rect.search-highlight').remove();
+
+    this.g.selectAll('text.leaf-label').each(function () {
+      const el = d3.select(this);
+      const text = (el.text() || '').toLowerCase();
+      const matches = text.includes(query);
+
+      el.attr('font-weight', matches ? '700' : null)
+        .attr('opacity', matches ? null : '0.3');
+
+      if (matches) {
+        const bbox = (this as SVGTextElement).getBBox();
+        const parent = (this as SVGTextElement).parentNode;
+        if (parent) {
+          d3.select(parent as Element).insert('rect', ':first-child')
+            .attr('class', 'search-highlight')
+            .attr('x', bbox.x - 2)
+            .attr('y', bbox.y - 1)
+            .attr('width', bbox.width + 4)
+            .attr('height', bbox.height + 2)
+            .attr('rx', 2)
+            .attr('fill', '#fff3cd')
+            .attr('opacity', 0.8);
+        }
+      }
+    });
   }
 
   render(layout: LayoutResult): void {
@@ -298,8 +360,8 @@ export class TreeRenderer {
           self.showContextMenu(event.clientX, event.clientY, d.node, root);
         });
 
-      // Dismiss context menu on click elsewhere
-      this.svg.on('click.context', () => this.dismissContextMenu());
+      // Dismiss context menu on click anywhere
+      document.addEventListener('click', this.dismissContextMenuBound);
     }
 
     // Scale bar (rectangular layout only, when branch lengths exist)
@@ -549,6 +611,7 @@ export class TreeRenderer {
 
   destroy(): void {
     this.dismissContextMenu();
+    document.removeEventListener('click', this.dismissContextMenuBound);
     d3.select(this.container).selectAll('*').remove();
   }
 }

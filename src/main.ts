@@ -473,9 +473,11 @@ function buildOpenTreePanel(): void {
   modeSelect.addEventListener('change', updateModeVisibility);
   updateModeVisibility();
 
-  // Autocomplete on typing
+  // Autocomplete on typing (with AbortController to cancel stale requests)
+  let autocompleteController: AbortController | null = null;
   searchInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
+    if (autocompleteController) autocompleteController.abort();
     const query = searchInput.value.trim();
     if (query.length < 2) {
       dropdown.innerHTML = '';
@@ -483,8 +485,9 @@ function buildOpenTreePanel(): void {
       return;
     }
     debounceTimer = setTimeout(async () => {
+      autocompleteController = new AbortController();
       try {
-        const results = await autocompleteName(query);
+        const results = await autocompleteName(query, 'All life', autocompleteController.signal);
         dropdown.innerHTML = '';
         if (results.length === 0) {
           dropdown.style.display = 'none';

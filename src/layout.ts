@@ -13,7 +13,7 @@ export function computeRectangularLayout(
   const maxBranchLen = useBranchLengths ? getMaxBranchLength(root) : getMaxDepthValue(root);
 
   const marginLeft = 10;
-  const marginRight = 150; // Space for labels
+  const marginRight = 150;
   const marginTop = 20;
   const marginBottom = 20;
 
@@ -23,6 +23,7 @@ export function computeRectangularLayout(
   const leafSpacing = leafCount > 1 ? plotHeight / (leafCount - 1) : plotHeight / 2;
 
   const nodes: LayoutNode[] = [];
+  const nodeMap = new Map<TreeNode, LayoutNode>();
   const edges: LayoutEdge[] = [];
   let leafIndex = 0;
 
@@ -47,13 +48,12 @@ export function computeRectangularLayout(
       });
       y = (childPositions[0].y + childPositions[childPositions.length - 1].y) / 2;
 
-      // Update direct children's parentY (was 0 placeholder)
+      // Fix parentY for direct children via O(1) Map lookup
       for (const childNode of node.children) {
-        const ln = nodes.find((n) => n.node === childNode);
+        const ln = nodeMap.get(childNode);
         if (ln) ln.parentY = y;
       }
 
-      // Add elbow connectors
       for (const cp of childPositions) {
         edges.push({
           sourceX: x,
@@ -66,7 +66,9 @@ export function computeRectangularLayout(
       }
     }
 
-    nodes.push({ node, x, y, parentX, parentY });
+    const ln: LayoutNode = { node, x, y, parentX, parentY };
+    nodes.push(ln);
+    nodeMap.set(node, ln);
     return { x, y };
   }
 
@@ -93,9 +95,10 @@ export function computeRadialLayout(
 
   const cx = width / 2;
   const cy = height / 2;
-  const maxRadius = Math.min(width, height) / 2 - 100; // Leave room for labels
+  const maxRadius = Math.min(width, height) / 2 - 100;
 
   const nodes: LayoutNode[] = [];
+  const nodeMap = new Map<TreeNode, LayoutNode>();
   const edges: LayoutEdge[] = [];
   let leafIndex = 0;
 
@@ -117,7 +120,6 @@ export function computeRadialLayout(
         return layout(child, 0, 0, childDepth);
       });
 
-      // Angle is midpoint of child angles
       const minAngle = childResults[0].angle;
       const maxAngle = childResults[childResults.length - 1].angle;
       angle = (minAngle + maxAngle) / 2;
@@ -125,9 +127,9 @@ export function computeRadialLayout(
       const x = cx + radius * Math.cos(angle);
       const y = cy + radius * Math.sin(angle);
 
-      // Fix parentX/parentY for direct children
+      // Fix parentX/parentY via O(1) Map lookup
       for (const childNode of node.children) {
-        const ln = nodes.find((n) => n.node === childNode);
+        const ln = nodeMap.get(childNode);
         if (ln) { ln.parentX = x; ln.parentY = y; }
       }
 
@@ -144,7 +146,9 @@ export function computeRadialLayout(
     const x = cx + radius * Math.cos(angle);
     const y = cy + radius * Math.sin(angle);
 
-    nodes.push({ node, x, y, parentX, parentY });
+    const ln: LayoutNode = { node, x, y, parentX, parentY };
+    nodes.push(ln);
+    nodeMap.set(node, ln);
     return { angle, radius, x, y };
   }
 

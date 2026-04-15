@@ -486,6 +486,36 @@ html, body {
   cursor: grabbing;
 }
 
+/* Search box */
+.tree-search {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+}
+
+.tree-search-input {
+  width: 180px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--font);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.95);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.tree-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.tree-search-input::placeholder {
+  color: var(--text-muted);
+}
+
 /* Context menu */
 .tree-context-menu {
   position: fixed;
