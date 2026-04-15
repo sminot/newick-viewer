@@ -10,47 +10,57 @@ import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './o
 import { parseCSV, buildTipColorMap, MetadataTable, TipColorMap } from './metadata';
 
 // Example trees — a random one is loaded when "Load example" is clicked
-const EXAMPLES: { name: string; tree1: string; tree2?: string }[] = [
+const EXAMPLES: { name: string; tree1: string; tree2?: string; metadata?: string }[] = [
   {
     name: 'Primates',
     tree1: '((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,Hylobates_lar:0.0220):0.0033):0.0350,(Macaca_mulatta:0.0370,Papio_anubis:0.0365):0.0150);',
     tree2: '((((Pan_troglodytes:0.0075,Homo_sapiens:0.0070):0.0028,Gorilla_gorilla:0.0092):0.0100,(Pongo_abelii:0.0188,Hylobates_lar:0.0225):0.0035):0.0355,(Papio_anubis:0.0372,Macaca_mulatta:0.0368):0.0155);',
+    metadata: 'name,family\nHomo_sapiens,Hominidae\nPan_troglodytes,Hominidae\nGorilla_gorilla,Hominidae\nPongo_abelii,Hominidae\nHylobates_lar,Hylobatidae\nMacaca_mulatta,Cercopithecidae\nPapio_anubis,Cercopithecidae',
   },
   {
     name: 'Mammals',
     tree1: '(((((Cow:0.2143,Pig:0.1480):0.0851,Horse:0.1658):0.0586,Cat:0.2648):0.0381,(((Human:0.0110,Chimp:0.0285):0.0113,Rhesus:0.0221):0.1010,Rabbit:0.2100):0.0250):0.3408,(Rat:0.0510,Mouse:0.0980):0.2790);',
+    metadata: 'name,order\nCow,Artiodactyla\nPig,Artiodactyla\nHorse,Perissodactyla\nCat,Carnivora\nHuman,Primates\nChimp,Primates\nRhesus,Primates\nRabbit,Lagomorpha\nRat,Rodentia\nMouse,Rodentia',
   },
   {
     name: 'Carnivores',
     tree1: '((((Dog:0.0850,Wolf:0.0120):0.0600,(Fox:0.0920,Arctic_fox:0.0880):0.0550):0.1200,((Cat:0.0780,Lion:0.0910):0.0450,(Tiger:0.0870,Leopard:0.0830):0.0480):0.0900):0.0350,((Bear:0.1100,Panda:0.1250):0.0800,(Raccoon:0.1400,Red_panda:0.1350):0.0750):0.0600);',
+    metadata: 'name,family\nDog,Canidae\nWolf,Canidae\nFox,Canidae\nArctic_fox,Canidae\nCat,Felidae\nLion,Felidae\nTiger,Felidae\nLeopard,Felidae\nBear,Ursidae\nPanda,Ursidae\nRaccoon,Procyonidae\nRed_panda,Ailuridae',
   },
   {
     name: 'Birds',
     tree1: '((((Chicken:0.0800,Turkey:0.0750):0.0450,(Duck:0.0900,Goose:0.0850):0.0500):0.1200,((Eagle:0.0650,Hawk:0.0700):0.0550,(Falcon:0.0680,Kestrel:0.0720):0.0580):0.0800):0.0600,(Ostrich:0.1500,(Penguin:0.1200,Albatross:0.1100):0.0400):0.0900);',
+    metadata: 'name,group\nChicken,Galliformes\nTurkey,Galliformes\nDuck,Anseriformes\nGoose,Anseriformes\nEagle,Raptors\nHawk,Raptors\nFalcon,Raptors\nKestrel,Raptors\nOstrich,Ratites\nPenguin,Seabirds\nAlbatross,Seabirds',
   },
   {
     name: 'Fish',
     tree1: '(((Zebrafish:0.2200,(Salmon:0.1800,Trout:0.1750):0.0300):0.0800,((Cod:0.1900,Tilapia:0.2000):0.0600,(Tuna:0.1700,Swordfish:0.1650):0.0550):0.0400):0.1500,(Shark:0.3200,(Ray:0.2800,Skate:0.2900):0.0500):0.1000);',
+    metadata: 'name,class\nZebrafish,Actinopterygii\nSalmon,Actinopterygii\nTrout,Actinopterygii\nCod,Actinopterygii\nTilapia,Actinopterygii\nTuna,Actinopterygii\nSwordfish,Actinopterygii\nShark,Chondrichthyes\nRay,Chondrichthyes\nSkate,Chondrichthyes',
   },
   {
     name: 'Flowering plants',
     tree1: '((((Arabidopsis:0.1500,Brassica:0.1600):0.0800,(Tomato:0.1400,Potato:0.1350):0.0750):0.1200,((Rice:0.1100,Wheat:0.1050):0.0500,(Maize:0.1200,Sorghum:0.1150):0.0480):0.0900):0.0700,((Grape:0.1800,Citrus:0.1900):0.0650,(Sunflower:0.2000,Lettuce:0.1950):0.0600):0.0800);',
+    metadata: 'name,type\nArabidopsis,Eudicot\nBrassica,Eudicot\nTomato,Eudicot\nPotato,Eudicot\nRice,Monocot\nWheat,Monocot\nMaize,Monocot\nSorghum,Monocot\nGrape,Eudicot\nCitrus,Eudicot\nSunflower,Eudicot\nLettuce,Eudicot',
   },
   {
     name: 'Bacteria',
     tree1: '(((Escherichia_coli:0.0500,Salmonella:0.0600):0.0800,(Vibrio:0.1000,Pseudomonas:0.1200):0.0700):0.1500,((Bacillus:0.1100,Staphylococcus:0.1300):0.0900,((Streptococcus:0.1000,Lactobacillus:0.1150):0.0600,(Clostridium:0.1400,Mycobacterium:0.1800):0.0800):0.0500):0.1200);',
+    metadata: 'name,gram\nEscherichia_coli,Negative\nSalmonella,Negative\nVibrio,Negative\nPseudomonas,Negative\nBacillus,Positive\nStaphylococcus,Positive\nStreptococcus,Positive\nLactobacillus,Positive\nClostridium,Positive\nMycobacterium,Acid-fast',
   },
   {
     name: 'Fungi',
     tree1: '(((Saccharomyces:0.2100,(Candida:0.2300,Pichia:0.2200):0.0400):0.1000,((Aspergillus:0.1800,Penicillium:0.1750):0.0600,(Neurospora:0.1900,Fusarium:0.2000):0.0550):0.0800):0.0700,(Agaricus:0.2500,(Coprinus:0.2400,Pleurotus:0.2350):0.0350):0.1100);',
+    metadata: 'name,phylum\nSaccharomyces,Ascomycota\nCandida,Ascomycota\nPichia,Ascomycota\nAspergillus,Ascomycota\nPenicillium,Ascomycota\nNeurospora,Ascomycota\nFusarium,Ascomycota\nAgaricus,Basidiomycota\nCoprinus,Basidiomycota\nPleurotus,Basidiomycota',
   },
   {
     name: 'Insects',
     tree1: '((((Drosophila:0.1200,Musca:0.1350):0.0700,(Aedes:0.1400,Anopheles:0.1300):0.0650):0.0900,((Apis:0.1100,Bombus:0.1050):0.0500,(Formica:0.1250,Solenopsis:0.1300):0.0550):0.0800):0.0600,((Tribolium:0.1500,Leptinotarsa:0.1600):0.0750,(Bombyx:0.1400,(Papilio:0.1200,Danaus:0.1150):0.0300):0.0850):0.0700);',
+    metadata: 'name,order\nDrosophila,Diptera\nMusca,Diptera\nAedes,Diptera\nAnopheles,Diptera\nApis,Hymenoptera\nBombus,Hymenoptera\nFormica,Hymenoptera\nSolenopsis,Hymenoptera\nTribolium,Coleoptera\nLeptinotarsa,Coleoptera\nBombyx,Lepidoptera\nPapilio,Lepidoptera\nDanaus,Lepidoptera',
   },
   {
     name: 'Dinosaurs (hypothetical)',
     tree1: '((((Tyrannosaurus:0.0800,Allosaurus:0.1200):0.0500,(Velociraptor:0.0700,Deinonychus:0.0650):0.0600):0.0900,((Triceratops:0.1100,Styracosaurus:0.1050):0.0450,(Stegosaurus:0.1300,Ankylosaurus:0.1250):0.0500):0.0800):0.0400,((Brachiosaurus:0.1500,Diplodocus:0.1400):0.0350,(Apatosaurus:0.1450,Argentinosaurus:0.1600):0.0400):0.0700);',
+    metadata: 'name,diet\nTyrannosaurus,Carnivore\nAllosaurus,Carnivore\nVelociraptor,Carnivore\nDeinonychus,Carnivore\nTriceratops,Herbivore\nStyracosaurus,Herbivore\nStegosaurus,Herbivore\nAnkylosaurus,Herbivore\nBrachiosaurus,Herbivore\nDiplodocus,Herbivore\nApatosaurus,Herbivore\nArgentinosaurus,Herbivore',
   },
 ];
 
@@ -257,8 +267,8 @@ function renderTree(): void {
         },
       });
 
-      // Auto-fit if the tree is taller than the viewer
-      if (treeHeight > autoH) {
+      // Auto-fit: on first render always, or when tree exceeds viewport
+      if (!hasRenderedOnce || treeHeight > autoH || w > autoW) {
         currentRenderer.fitToView(layout);
       }
     }
@@ -767,6 +777,20 @@ function buildInputPanel(): void {
         state.newick2 = ex.tree2;
       }
     }
+    // Load example metadata if available
+    if (ex.metadata) {
+      try {
+        metadataTable = parseCSV(ex.metadata);
+        metadataIdColumn = metadataTable.headers[0];
+        metadataCategoryColumn = metadataTable.headers[1];
+        currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
+        buildMetadataPanel();
+      } catch { /* ignore metadata errors */ }
+    } else {
+      metadataTable = null;
+      currentTipColorMap = null;
+      buildMetadataPanel();
+    }
     renderTree();
     showToast(ex.name);
   });
@@ -925,19 +949,19 @@ function buildControlsPanel(): void {
     debouncedRenderTree();
   });
 
-  // Tree dimensions
-  addRangeControl(panel, 'Tree width (px)', state.style.canvasWidth, 0, 4000, 100, (v) => {
+  // Tree dimensions (stepper with +/- buttons)
+  addStepperControl(panel, 'Tree width (px)', state.style.canvasWidth, 0, 8000, 100, (v) => {
     state.style.canvasWidth = v;
     debouncedRenderTree();
   });
 
-  addRangeControl(panel, 'Tree height (px)', state.style.canvasHeight, 0, 4000, 100, (v) => {
+  addStepperControl(panel, 'Tree height (px)', state.style.canvasHeight, 0, 8000, 100, (v) => {
     state.style.canvasHeight = v;
     debouncedRenderTree();
   });
 
   const dimHint = document.createElement('div');
-  dimHint.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:-4px;margin-bottom:4px;';
+  dimHint.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:-2px;margin-bottom:4px;';
   dimHint.textContent = '0 = auto-fit to viewer';
   panel.appendChild(dimHint);
 
@@ -1059,6 +1083,62 @@ function addRangeControl(
     onChange(parseFloat(num.value));
   });
   row.append(span, input, num);
+  parent.appendChild(row);
+}
+
+function addStepperControl(
+  parent: HTMLElement,
+  label: string,
+  value: number,
+  min: number,
+  max: number,
+  step: number,
+  onChange: (v: number) => void
+): void {
+  const row = document.createElement('label');
+  const span = document.createElement('span');
+  span.textContent = label;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'stepper';
+
+  const btnMinus = document.createElement('button');
+  btnMinus.type = 'button';
+  btnMinus.className = 'stepper-btn';
+  btnMinus.textContent = '\u2212'; // −
+
+  const num = document.createElement('input');
+  num.type = 'number';
+  num.min = String(min);
+  num.max = String(max);
+  num.step = String(step);
+  num.value = String(value);
+
+  const btnPlus = document.createElement('button');
+  btnPlus.type = 'button';
+  btnPlus.className = 'stepper-btn';
+  btnPlus.textContent = '+';
+
+  btnMinus.addEventListener('click', (e) => {
+    e.preventDefault();
+    const v = Math.max(min, parseFloat(num.value) - step);
+    num.value = String(v);
+    onChange(v);
+  });
+  btnPlus.addEventListener('click', (e) => {
+    e.preventDefault();
+    const v = Math.min(max, parseFloat(num.value) + step);
+    num.value = String(v);
+    onChange(v);
+  });
+  num.addEventListener('change', () => {
+    const v = Math.max(min, Math.min(max, parseFloat(num.value) || 0));
+    num.value = String(v);
+    onChange(v);
+  });
+
+  wrapper.append(btnMinus, num, btnPlus);
+  row.append(span, wrapper);
   parent.appendChild(row);
 }
 
