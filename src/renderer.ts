@@ -37,7 +37,6 @@ export class TreeRenderer {
   private root?: TreeNode;
   private contextMenu: HTMLElement | null = null;
   private tipColorMap?: TipColorMap | null;
-  private legendEl: HTMLElement | null = null;
   private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: RendererOptions) {
@@ -397,30 +396,49 @@ export class TreeRenderer {
   }
 
   private renderLegend(): void {
-    if (this.legendEl) { this.legendEl.remove(); this.legendEl = null; }
     if (!this.tipColorMap?.legend.length) return;
 
-    const el = document.createElement('div');
-    el.className = 'color-legend';
+    // Use the bounding box of the existing tree content to place legend to the right
+    const svgNode = this.g.node();
+    if (!svgNode) return;
+    const bbox = svgNode.getBBox();
+    const legendMargin = 30;
+    const x0 = bbox.x + bbox.width + legendMargin;
+    const y0 = bbox.y + 10;
+    const rowHeight = 18;
+    const dotR = 5;
 
-    this.tipColorMap.legend.forEach((item) => {
-      const row = document.createElement('div');
-      row.className = 'color-legend-item';
+    const legendGroup = this.g.append('g').attr('class', 'legend');
 
-      const dot = document.createElement('span');
-      dot.className = 'color-legend-dot';
-      dot.style.background = item.color;
+    // Semi-transparent background
+    const bgHeight = this.tipColorMap.legend.length * rowHeight + 12;
+    legendGroup.append('rect')
+      .attr('x', x0 - 10)
+      .attr('y', y0 - 6)
+      .attr('width', 150)
+      .attr('height', bgHeight)
+      .attr('rx', 4)
+      .attr('fill', 'rgba(255,255,255,0.9)')
+      .attr('stroke', '#dfe1e2')
+      .attr('stroke-width', 1);
 
-      const label = document.createElement('span');
-      label.className = 'color-legend-label';
-      label.textContent = item.category;
+    this.tipColorMap.legend.forEach((item, i) => {
+      const y = y0 + i * rowHeight + 6;
+      legendGroup.append('circle')
+        .attr('cx', x0)
+        .attr('cy', y)
+        .attr('r', dotR)
+        .attr('fill', item.color);
 
-      row.append(dot, label);
-      el.appendChild(row);
+      legendGroup.append('text')
+        .attr('x', x0 + dotR + 8)
+        .attr('y', y)
+        .attr('dy', '0.35em')
+        .attr('font-size', '11px')
+        .attr('font-family', this.style.fontFamily)
+        .attr('fill', '#1b1b1b')
+        .text(item.category);
     });
-
-    this.legendEl = el;
-    this.container.appendChild(el);
   }
 
   private renderScaleBar(layout: LayoutResult): void {
@@ -524,9 +542,15 @@ export class TreeRenderer {
     const cw = containerRect.width;
     const ch = containerRect.height;
 
-    const scale = Math.min(cw / layout.width, ch / layout.height) * 0.9;
-    const tx = (cw - layout.width * scale) / 2;
-    const ty = (ch - layout.height * scale) / 2;
+    // Use the actual rendered bounding box (includes labels + legend)
+    const gNode = this.g.node();
+    const bbox = gNode ? gNode.getBBox() : null;
+    const contentW = bbox ? bbox.width + bbox.x : layout.width;
+    const contentH = bbox ? bbox.height + bbox.y : layout.height;
+
+    const scale = Math.min(cw / contentW, ch / contentH) * 0.9;
+    const tx = (cw - contentW * scale) / 2;
+    const ty = (ch - contentH * scale) / 2;
 
     this.svg.transition().duration(300).call(
       this.zoom.transform,
@@ -624,7 +648,6 @@ export class TreeRenderer {
 
   destroy(): void {
     this.dismissContextMenu();
-    if (this.legendEl) { this.legendEl.remove(); this.legendEl = null; }
     document.removeEventListener('click', this.dismissContextMenuBound);
     d3.select(this.container).selectAll('*').remove();
   }

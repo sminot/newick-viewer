@@ -7,19 +7,32 @@ function getSVGContent(container: HTMLElement): string | null {
   const svg = container.querySelector('svg');
   if (!svg) return null;
 
+  // Get content bounding box from the original (before cloning)
+  const group = svg.querySelector('g');
+  const contentBBox = group ? group.getBBox() : null;
+
   // Clone the SVG so we can modify it without affecting the display
   const clone = svg.cloneNode(true) as SVGSVGElement;
 
   // Reset the zoom transform on the cloned group so we export the full tree
-  const group = clone.querySelector('g');
-  if (group) {
-    group.removeAttribute('transform');
+  const cloneGroup = clone.querySelector('g');
+  if (cloneGroup) {
+    cloneGroup.removeAttribute('transform');
   }
 
-  // Get computed dimensions
-  const bbox = svg.getBoundingClientRect();
-  clone.setAttribute('width', String(bbox.width));
-  clone.setAttribute('height', String(bbox.height));
+  // Use content bounding box to size the export (includes labels + legend)
+  if (contentBBox) {
+    const pad = 10;
+    const w = contentBBox.x + contentBBox.width + pad;
+    const h = contentBBox.y + contentBBox.height + pad;
+    clone.setAttribute('width', String(w));
+    clone.setAttribute('height', String(h));
+    clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  } else {
+    const bbox = svg.getBoundingClientRect();
+    clone.setAttribute('width', String(bbox.width));
+    clone.setAttribute('height', String(bbox.height));
+  }
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
   return new XMLSerializer().serializeToString(clone);
