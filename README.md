@@ -1,4 +1,4 @@
-# Newick Viewer
+# Tree Viewer
 
 [![CI](https://github.com/sminot/newick-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/sminot/newick-viewer/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/sminot/newick-viewer/actions/workflows/codeql.yml/badge.svg)](https://github.com/sminot/newick-viewer/actions/workflows/codeql.yml)

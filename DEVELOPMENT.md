@@ -1,6 +1,6 @@
 # Development Guide
 
-Technical documentation for building, testing, and deploying the Newick Viewer.
+Technical documentation for building, testing, and deploying Tree Viewer.
 
 ## Prerequisites
 

@@ -13,7 +13,7 @@ async function fillAndWait(page: any, newick: string) {
 test.describe('Page loads correctly', () => {
   test('shows the app title and input panel', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('.app-title')).toHaveText('Newick Viewer');
+    await expect(page.locator('.app-title')).toHaveText('Tree Viewer');
     await expect(page.locator('#newick-input-1')).toBeVisible();
   });
 
