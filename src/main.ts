@@ -9,9 +9,52 @@ import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
 import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './opentree';
 import { parseCSV, buildTipColorMap, MetadataTable, TipColorMap } from './metadata';
 
-// Example trees for demo
-const EXAMPLE_TREE_1 = '((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,Hylobates_lar:0.0220):0.0033):0.0350,(Macaca_mulatta:0.0370,Papio_anubis:0.0365):0.0150);';
-const EXAMPLE_TREE_2 = '((((Pan_troglodytes:0.0075,Homo_sapiens:0.0070):0.0028,Gorilla_gorilla:0.0092):0.0100,(Pongo_abelii:0.0188,Hylobates_lar:0.0225):0.0035):0.0355,(Papio_anubis:0.0372,Macaca_mulatta:0.0368):0.0155);';
+// Example trees — a random one is loaded when "Load example" is clicked
+const EXAMPLES: { name: string; tree1: string; tree2?: string }[] = [
+  {
+    name: 'Primates',
+    tree1: '((((Homo_sapiens:0.0067,Pan_troglodytes:0.0072):0.0024,Gorilla_gorilla:0.0089):0.0096,(Pongo_abelii:0.0183,Hylobates_lar:0.0220):0.0033):0.0350,(Macaca_mulatta:0.0370,Papio_anubis:0.0365):0.0150);',
+    tree2: '((((Pan_troglodytes:0.0075,Homo_sapiens:0.0070):0.0028,Gorilla_gorilla:0.0092):0.0100,(Pongo_abelii:0.0188,Hylobates_lar:0.0225):0.0035):0.0355,(Papio_anubis:0.0372,Macaca_mulatta:0.0368):0.0155);',
+  },
+  {
+    name: 'Mammals',
+    tree1: '(((((Cow:0.2143,Pig:0.1480):0.0851,Horse:0.1658):0.0586,Cat:0.2648):0.0381,(((Human:0.0110,Chimp:0.0285):0.0113,Rhesus:0.0221):0.1010,Rabbit:0.2100):0.0250):0.3408,(Rat:0.0510,Mouse:0.0980):0.2790);',
+  },
+  {
+    name: 'Carnivores',
+    tree1: '((((Dog:0.0850,Wolf:0.0120):0.0600,(Fox:0.0920,Arctic_fox:0.0880):0.0550):0.1200,((Cat:0.0780,Lion:0.0910):0.0450,(Tiger:0.0870,Leopard:0.0830):0.0480):0.0900):0.0350,((Bear:0.1100,Panda:0.1250):0.0800,(Raccoon:0.1400,Red_panda:0.1350):0.0750):0.0600);',
+  },
+  {
+    name: 'Birds',
+    tree1: '((((Chicken:0.0800,Turkey:0.0750):0.0450,(Duck:0.0900,Goose:0.0850):0.0500):0.1200,((Eagle:0.0650,Hawk:0.0700):0.0550,(Falcon:0.0680,Kestrel:0.0720):0.0580):0.0800):0.0600,(Ostrich:0.1500,(Penguin:0.1200,Albatross:0.1100):0.0400):0.0900);',
+  },
+  {
+    name: 'Fish',
+    tree1: '(((Zebrafish:0.2200,(Salmon:0.1800,Trout:0.1750):0.0300):0.0800,((Cod:0.1900,Tilapia:0.2000):0.0600,(Tuna:0.1700,Swordfish:0.1650):0.0550):0.0400):0.1500,(Shark:0.3200,(Ray:0.2800,Skate:0.2900):0.0500):0.1000);',
+  },
+  {
+    name: 'Flowering plants',
+    tree1: '((((Arabidopsis:0.1500,Brassica:0.1600):0.0800,(Tomato:0.1400,Potato:0.1350):0.0750):0.1200,((Rice:0.1100,Wheat:0.1050):0.0500,(Maize:0.1200,Sorghum:0.1150):0.0480):0.0900):0.0700,((Grape:0.1800,Citrus:0.1900):0.0650,(Sunflower:0.2000,Lettuce:0.1950):0.0600):0.0800);',
+  },
+  {
+    name: 'Bacteria',
+    tree1: '(((Escherichia_coli:0.0500,Salmonella:0.0600):0.0800,(Vibrio:0.1000,Pseudomonas:0.1200):0.0700):0.1500,((Bacillus:0.1100,Staphylococcus:0.1300):0.0900,((Streptococcus:0.1000,Lactobacillus:0.1150):0.0600,(Clostridium:0.1400,Mycobacterium:0.1800):0.0800):0.0500):0.1200);',
+  },
+  {
+    name: 'Fungi',
+    tree1: '(((Saccharomyces:0.2100,(Candida:0.2300,Pichia:0.2200):0.0400):0.1000,((Aspergillus:0.1800,Penicillium:0.1750):0.0600,(Neurospora:0.1900,Fusarium:0.2000):0.0550):0.0800):0.0700,(Agaricus:0.2500,(Coprinus:0.2400,Pleurotus:0.2350):0.0350):0.1100);',
+  },
+  {
+    name: 'Insects',
+    tree1: '((((Drosophila:0.1200,Musca:0.1350):0.0700,(Aedes:0.1400,Anopheles:0.1300):0.0650):0.0900,((Apis:0.1100,Bombus:0.1050):0.0500,(Formica:0.1250,Solenopsis:0.1300):0.0550):0.0800):0.0600,((Tribolium:0.1500,Leptinotarsa:0.1600):0.0750,(Bombyx:0.1400,(Papilio:0.1200,Danaus:0.1150):0.0300):0.0850):0.0700);',
+  },
+  {
+    name: 'Dinosaurs (hypothetical)',
+    tree1: '((((Tyrannosaurus:0.0800,Allosaurus:0.1200):0.0500,(Velociraptor:0.0700,Deinonychus:0.0650):0.0600):0.0900,((Triceratops:0.1100,Styracosaurus:0.1050):0.0450,(Stegosaurus:0.1300,Ankylosaurus:0.1250):0.0500):0.0800):0.0400,((Brachiosaurus:0.1500,Diplodocus:0.1400):0.0350,(Apatosaurus:0.1450,Argentinosaurus:0.1600):0.0400):0.0700);',
+  },
+];
+
+let lastExampleIndex = -1;
 
 let state: ViewState;
 let currentRenderer: TreeRenderer | null = null;
@@ -707,16 +750,25 @@ function buildInputPanel(): void {
   btnExample.textContent = 'Load example';
   btnExample.addEventListener('click', () => {
     pushUndo();
-    ta1.value = EXAMPLE_TREE_1;
-    state.newick1 = EXAMPLE_TREE_1;
-    if (state.tanglegram) {
+    // Pick a random example different from the last one
+    let idx: number;
+    do {
+      idx = Math.floor(Math.random() * EXAMPLES.length);
+    } while (idx === lastExampleIndex && EXAMPLES.length > 1);
+    lastExampleIndex = idx;
+    const ex = EXAMPLES[idx];
+
+    ta1.value = ex.tree1;
+    state.newick1 = ex.tree1;
+    if (state.tanglegram && ex.tree2) {
       const ta2El = document.getElementById('newick-input-2') as HTMLTextAreaElement;
       if (ta2El) {
-        ta2El.value = EXAMPLE_TREE_2;
-        state.newick2 = EXAMPLE_TREE_2;
+        ta2El.value = ex.tree2;
+        state.newick2 = ex.tree2;
       }
     }
     renderTree();
+    showToast(ex.name);
   });
 
   btnRow.append(btnExample);
