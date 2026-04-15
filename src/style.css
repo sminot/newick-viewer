@@ -663,7 +663,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   100% { opacity: 0; transform: translateX(-50%) translateY(0); }
 }
 
-/* Responsive */
+/* Responsive — tablet/narrow desktop */
+@media (max-width: 1024px) and (min-width: 769px) {
+  :root {
+    --sidebar-width: 260px;
+  }
+}
+
+/* Responsive — mobile */
 @media (max-width: 768px) {
   :root {
     --toolbar-height: 42px;
