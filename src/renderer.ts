@@ -3,6 +3,10 @@ import { LayoutResult, LayoutNode, StyleOptions, LayoutType, TreeNode } from './
 import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
 import type { TipColorMap } from './metadata';
 
+function isTouchDevice(): boolean {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
 /** Format leaf names: replace underscores with spaces (Newick convention) */
 function formatLeafName(name: string): string {
   return name.replace(/_/g, ' ');
@@ -337,7 +341,7 @@ export class TreeRenderer {
         .attr('class', 'node-target')
         .attr('cx', (d) => d.x)
         .attr('cy', (d) => d.y)
-        .attr('r', 6)
+        .attr('r', isTouchDevice() ? 12 : 6)
         .attr('fill', 'transparent')
         .attr('stroke', 'transparent')
         .attr('stroke-width', 1)
@@ -358,6 +362,27 @@ export class TreeRenderer {
           event.preventDefault();
           event.stopPropagation();
           self.showContextMenu(event.clientX, event.clientY, d.node, root);
+        })
+        .each(function (d) {
+          // Long-press for touch devices (500ms)
+          let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+          const el = this as SVGCircleElement;
+          el.addEventListener('touchstart', (e) => {
+            longPressTimer = setTimeout(() => {
+              longPressTimer = null;
+              const touch = e.touches[0];
+              if (touch) {
+                e.preventDefault();
+                self.showContextMenu(touch.clientX, touch.clientY, d.node, root);
+              }
+            }, 500);
+          }, { passive: false });
+          el.addEventListener('touchend', () => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+          });
+          el.addEventListener('touchmove', () => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+          });
         });
 
       // Dismiss context menu on click anywhere

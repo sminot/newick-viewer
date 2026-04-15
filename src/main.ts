@@ -223,6 +223,14 @@ function renderTree(): void {
 
     clearError();
     setStateInURL(state);
+
+    // On mobile, auto-collapse sidebar after a tree renders so the user can see it
+    if (window.innerWidth <= 768) {
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar && !sidebar.classList.contains('collapsed')) {
+        sidebar.classList.add('collapsed');
+      }
+    }
   } catch (e: any) {
     showError(e.message || 'Failed to parse Newick string');
   }

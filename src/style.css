@@ -479,6 +479,7 @@ html, body {
   width: 100%;
   height: 100%;
   cursor: grab;
+  touch-action: none; /* Let D3 zoom handle all touch gestures */
 }
 
 #viewer svg:active {
@@ -664,28 +665,143 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 
 /* Responsive */
 @media (max-width: 768px) {
+  :root {
+    --toolbar-height: 42px;
+  }
+
+  /* Toolbar: wrap into two rows if needed, reduce padding */
   #toolbar {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    height: auto;
+    min-height: var(--toolbar-height);
+    flex-wrap: wrap;
+    padding: 4px 8px;
+    gap: 4px;
   }
+
+  #toolbar .app-title {
+    font-size: 14px;
+    margin-right: 8px;
+  }
+
+  #toolbar button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
   #toolbar .toolbar-spacer {
-    flex: 0;
-    min-width: 8px;
+    flex-basis: 100%;
+    height: 0;
   }
+
+  #toolbar .toolbar-separator {
+    display: none;
+  }
+
+  #toolbar .toolbar-label {
+    display: none;
+  }
+
+  /* Sidebar: bottom sheet style */
   #main {
     flex-direction: column;
   }
+
   #sidebar {
     width: 100%;
     min-width: 100%;
-    max-height: 35vh;
+    max-height: 40vh;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
+    order: 1;
   }
+
   #sidebar.collapsed {
     width: 100%;
     min-width: 100%;
     max-height: 0;
+    overflow: hidden;
     border-bottom: none;
+  }
+
+  #viewer {
+    order: 0;
+    min-height: 50vh;
+  }
+
+  #sidebar section {
+    padding: 10px 12px;
+  }
+
+  #sidebar h3 {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  #sidebar textarea {
+    min-height: 60px;
+    font-size: 11px;
+  }
+
+  #sidebar label {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  /* Zoom controls: slightly smaller */
+  .zoom-controls {
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .zoom-btn {
+    width: 36px;
+    height: 32px;
+  }
+
+  /* Search: full width, below zoom controls area */
+  .tree-search {
+    top: 8px;
+    left: 8px;
+    right: 60px;
+  }
+
+  .tree-search-input {
+    width: 100%;
+    font-size: 14px;
+    padding: 6px 10px;
+  }
+
+  /* Tree stats: smaller */
+  .tree-stats {
+    bottom: 10px;
+    left: 10px;
+    font-size: 10px;
+  }
+
+  /* Context menu: wider touch targets */
+  .tree-context-menu-item {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  #toolbar .app-title {
+    font-size: 13px;
+    margin-right: 4px;
+  }
+
+  #toolbar button {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  #sidebar {
+    max-height: 45vh;
+  }
+
+  #viewer {
+    min-height: 45vh;
   }
 }
