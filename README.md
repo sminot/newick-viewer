@@ -72,7 +72,7 @@ Yes. The tree and the text box stay in sync — edits in either direction are re
 - **Keep only this clade**: Extract this subtree, discarding everything else
 - **Reroot here**: Reroot the tree at this node
 
-All edits update the Newick text in the sidebar so you can copy the modified tree.
+All edits update the Newick text in the sidebar so you can copy the modified tree. **Undo** and **Redo** buttons in the toolbar (or `Ctrl+Z` / `Ctrl+Shift+Z`) let you reverse mistakes. Up to 50 levels of history are tracked.
 
 ### Can I color tips by metadata?
 
@@ -127,8 +127,14 @@ Yes. Once the page is loaded, everything runs in your browser. The only feature 
 | Left-click node | Flip children |
 | Right-click node | Editing context menu |
 | `Ctrl+0` | Fit tree to view |
+| `Ctrl+Z` | Undo last edit |
+| `Ctrl+Shift+Z` | Redo |
 
-The viewer also has +/−/Fit buttons in the bottom-right corner.
+The viewer also has +/−/Fit buttons in the bottom-right corner, Undo/Redo in the toolbar, and a taxa search box in the top-left of the viewer.
+
+### Can I search for a specific taxon in the tree?
+
+Yes. A search box in the top-left corner of the viewer lets you filter by name. Matching taxa are highlighted in bold with a yellow background, while non-matching taxa fade to make the matches stand out. The search updates as you type.
 
 ### How large of a tree can it handle?
 

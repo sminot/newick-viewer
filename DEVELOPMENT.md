@@ -57,7 +57,7 @@ npm run dev:cirro
 npm test
 ```
 
-68 tests covering the Newick parser, NEXUS extraction, layout engine, URL state encoding, and CSV metadata parsing. Uses [Vitest](https://vitest.dev/).
+84 tests covering the Newick parser, NEXUS extraction, tree editing operations, layout engine, URL state encoding, and CSV metadata parsing. Uses [Vitest](https://vitest.dev/).
 
 ### Open Tree of Life API tests
 
@@ -113,6 +113,7 @@ src/
 
 tests/                 Vitest unit tests
   ├── newick-parser.test.ts
+  ├── tree-editing.test.ts
   ├── layout.test.ts
   ├── state.test.ts
   ├── metadata.test.ts
