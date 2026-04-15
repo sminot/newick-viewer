@@ -797,11 +797,12 @@ function buildInputPanel(): void {
 
     ta1.value = ex.tree1;
     state.newick1 = ex.tree1;
-    if (state.tanglegram && ex.tree2) {
+    if (state.tanglegram) {
       const ta2El = document.getElementById('newick-input-2') as HTMLTextAreaElement;
       if (ta2El) {
-        ta2El.value = ex.tree2;
-        state.newick2 = ex.tree2;
+        const tree2 = ex.tree2 ?? ex.tree1;
+        ta2El.value = tree2;
+        state.newick2 = tree2;
       }
     }
     // Load example metadata if available
