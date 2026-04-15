@@ -28,6 +28,9 @@ const undoStack: string[] = [];
 const redoStack: string[] = [];
 const MAX_HISTORY = 50;
 
+// Track whether the first render has happened (for mobile auto-collapse)
+let hasRenderedOnce = false;
+
 /** Push the current newick1 onto the undo stack (call before making a change) */
 function pushUndo(): void {
   if (state.newick1) {
@@ -224,13 +227,14 @@ function renderTree(): void {
     clearError();
     setStateInURL(state);
 
-    // On mobile, auto-collapse sidebar after a tree renders so the user can see it
-    if (window.innerWidth <= 768) {
+    // On mobile, auto-collapse sidebar on the first render so the user sees the tree
+    if (!hasRenderedOnce && window.innerWidth <= 768) {
       const sidebar = document.getElementById('sidebar');
       if (sidebar && !sidebar.classList.contains('collapsed')) {
         sidebar.classList.add('collapsed');
       }
     }
+    hasRenderedOnce = true;
   } catch (e: any) {
     showError(e.message || 'Failed to parse Newick string');
   }
