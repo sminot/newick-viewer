@@ -285,27 +285,30 @@ function buildToolbar(): void {
   undoRedoGroup.className = 'toolbar-group';
 
   const btnUndo = document.createElement('button');
-  btnUndo.textContent = 'Undo';
-  btnUndo.title = 'Undo last edit (Ctrl+Z)';
+  btnUndo.className = 'btn-secondary';
+  btnUndo.textContent = '\u21A9'; // ↩
+  btnUndo.title = 'Undo (Ctrl+Z)';
   btnUndo.disabled = !canUndo();
+  btnUndo.style.fontSize = '16px';
   btnUndo.addEventListener('click', undo);
 
   const btnRedo = document.createElement('button');
-  btnRedo.textContent = 'Redo';
+  btnRedo.className = 'btn-secondary';
+  btnRedo.textContent = '\u21AA'; // ↪
   btnRedo.title = 'Redo (Ctrl+Shift+Z)';
   btnRedo.disabled = !canRedo();
+  btnRedo.style.fontSize = '16px';
   btnRedo.addEventListener('click', redo);
 
   undoRedoGroup.append(btnUndo, btnRedo);
   toolbar.appendChild(undoRedoGroup);
 
-  addSeparator(toolbar);
-
   // Sidebar toggle
   const btnSidebar = document.createElement('button');
   btnSidebar.className = 'btn-secondary';
-  btnSidebar.textContent = 'Panel';
-  btnSidebar.title = 'Toggle sidebar panel';
+  btnSidebar.textContent = '\u2630'; // ☰ hamburger
+  btnSidebar.title = 'Toggle sidebar';
+  btnSidebar.style.fontSize = '16px';
   btnSidebar.addEventListener('click', () => {
     const sidebar = document.getElementById('sidebar')!;
     sidebar.classList.toggle('collapsed');
@@ -841,13 +844,13 @@ function buildControlsPanel(): void {
   });
 
   // Branch width
-  addRangeControl(panel, 'Branch width', state.style.branchWidth, 0.5, 5, 0.5, (v) => {
+  addRangeControl(panel, 'Branch width (px)', state.style.branchWidth, 0.5, 5, 0.5, (v) => {
     state.style.branchWidth = v;
     debouncedRenderTree();
   });
 
   // Leaf label size
-  addRangeControl(panel, 'Label size', state.style.leafLabelSize, 6, 28, 1, (v) => {
+  addRangeControl(panel, 'Label size (px)', state.style.leafLabelSize, 6, 28, 1, (v) => {
     state.style.leafLabelSize = v;
     debouncedRenderTree();
   });
@@ -858,13 +861,13 @@ function buildControlsPanel(): void {
     debouncedRenderTree();
   });
 
-  // Canvas dimensions (0 = auto)
-  addRangeControl(panel, 'Canvas width', state.style.canvasWidth, 0, 4000, 100, (v) => {
+  // Tree dimensions
+  addRangeControl(panel, 'Tree width (px)', state.style.canvasWidth, 0, 4000, 100, (v) => {
     state.style.canvasWidth = v;
     debouncedRenderTree();
   });
 
-  addRangeControl(panel, 'Canvas height', state.style.canvasHeight, 0, 4000, 100, (v) => {
+  addRangeControl(panel, 'Tree height (px)', state.style.canvasHeight, 0, 4000, 100, (v) => {
     state.style.canvasHeight = v;
     debouncedRenderTree();
   });

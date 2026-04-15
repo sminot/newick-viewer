@@ -121,10 +121,9 @@ html, body {
 }
 
 #toolbar button:disabled {
-  opacity: 0.35;
+  opacity: 0.25;
   cursor: default;
-  background: #fff;
-  border-color: var(--border-color);
+  pointer-events: none;
 }
 
 #toolbar button.active {
