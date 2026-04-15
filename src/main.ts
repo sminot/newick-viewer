@@ -949,21 +949,24 @@ function buildControlsPanel(): void {
     debouncedRenderTree();
   });
 
-  // Tree dimensions (stepper with +/- buttons)
-  addStepperControl(panel, 'Tree width (px)', state.style.canvasWidth, 0, 8000, 100, (v) => {
-    state.style.canvasWidth = v;
-    debouncedRenderTree();
-  });
+  // Tree dimensions (auto checkbox + stepper)
+  const viewer = document.getElementById('viewer')!;
+  addDimensionControl(panel, 'Tree width', state.style.canvasWidth,
+    () => viewer.getBoundingClientRect().width || 900,
+    100, 8000, 100, (v) => {
+      state.style.canvasWidth = v;
+      debouncedRenderTree();
+    });
 
-  addStepperControl(panel, 'Tree height (px)', state.style.canvasHeight, 0, 8000, 100, (v) => {
-    state.style.canvasHeight = v;
-    debouncedRenderTree();
-  });
-
-  const dimHint = document.createElement('div');
-  dimHint.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:-2px;margin-bottom:4px;';
-  dimHint.textContent = '0 = auto-fit to viewer';
-  panel.appendChild(dimHint);
+  addDimensionControl(panel, 'Tree height', state.style.canvasHeight,
+    () => {
+      const rect = viewer.getBoundingClientRect();
+      return rect.height || 600;
+    },
+    100, 8000, 100, (v) => {
+      state.style.canvasHeight = v;
+      debouncedRenderTree();
+    });
 
   // Separator between style and toggle controls
   const controlsSep = document.createElement('div');
@@ -1086,18 +1089,31 @@ function addRangeControl(
   parent.appendChild(row);
 }
 
-function addStepperControl(
+function addDimensionControl(
   parent: HTMLElement,
   label: string,
   value: number,
+  getAutoValue: () => number,
   min: number,
   max: number,
   step: number,
   onChange: (v: number) => void
 ): void {
-  const row = document.createElement('label');
-  const span = document.createElement('span');
-  span.textContent = label;
+  const row = document.createElement('div');
+  row.className = 'dimension-row';
+
+  const labelSpan = document.createElement('span');
+  labelSpan.className = 'dimension-label';
+  labelSpan.textContent = label;
+
+  const autoLabel = document.createElement('label');
+  autoLabel.className = 'dimension-auto';
+  const autoCheck = document.createElement('input');
+  autoCheck.type = 'checkbox';
+  autoCheck.checked = value === 0;
+  const autoText = document.createElement('span');
+  autoText.textContent = 'Auto';
+  autoLabel.append(autoCheck, autoText);
 
   const wrapper = document.createElement('div');
   wrapper.className = 'stepper';
@@ -1105,40 +1121,67 @@ function addStepperControl(
   const btnMinus = document.createElement('button');
   btnMinus.type = 'button';
   btnMinus.className = 'stepper-btn';
-  btnMinus.textContent = '\u2212'; // −
+  btnMinus.textContent = '\u2212';
 
   const num = document.createElement('input');
   num.type = 'number';
   num.min = String(min);
   num.max = String(max);
   num.step = String(step);
-  num.value = String(value);
 
   const btnPlus = document.createElement('button');
   btnPlus.type = 'button';
   btnPlus.className = 'stepper-btn';
   btnPlus.textContent = '+';
 
+  function setDisabled(isAuto: boolean) {
+    num.disabled = isAuto;
+    btnMinus.disabled = isAuto;
+    btnPlus.disabled = isAuto;
+    wrapper.classList.toggle('disabled', isAuto);
+    if (isAuto) {
+      num.value = String(Math.round(getAutoValue()));
+    }
+  }
+
+  num.value = value === 0 ? String(Math.round(getAutoValue())) : String(value);
+  setDisabled(value === 0);
+
+  autoCheck.addEventListener('change', () => {
+    if (autoCheck.checked) {
+      num.value = String(Math.round(getAutoValue()));
+      onChange(0);
+    } else {
+      const autoVal = Math.round(getAutoValue());
+      num.value = String(autoVal);
+      onChange(autoVal);
+    }
+    setDisabled(autoCheck.checked);
+  });
+
   btnMinus.addEventListener('click', (e) => {
     e.preventDefault();
+    if (autoCheck.checked) return;
     const v = Math.max(min, parseFloat(num.value) - step);
     num.value = String(v);
     onChange(v);
   });
   btnPlus.addEventListener('click', (e) => {
     e.preventDefault();
+    if (autoCheck.checked) return;
     const v = Math.min(max, parseFloat(num.value) + step);
     num.value = String(v);
     onChange(v);
   });
   num.addEventListener('change', () => {
-    const v = Math.max(min, Math.min(max, parseFloat(num.value) || 0));
+    if (autoCheck.checked) return;
+    const v = Math.max(min, Math.min(max, parseFloat(num.value) || min));
     num.value = String(v);
     onChange(v);
   });
 
   wrapper.append(btnMinus, num, btnPlus);
-  row.append(span, wrapper);
+  row.append(labelSpan, autoLabel, wrapper);
   parent.appendChild(row);
 }
 
