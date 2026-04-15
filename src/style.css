@@ -632,6 +632,42 @@ html, body {
   color: var(--primary-dark);
 }
 
+/* Color legend overlay */
+.color-legend {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #dfe1e2;
+  border-radius: 4px;
+  padding: 6px 10px;
+  max-height: calc(100% - 60px);
+  overflow-y: auto;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.color-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.color-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.color-legend-label {
+  font-size: 11px;
+  font-family: var(--font);
+  color: #1b1b1b;
+  white-space: nowrap;
+}
+
 /* Zoom controls */
 .zoom-controls {
   position: absolute;
@@ -872,6 +908,19 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   .tree-stats {
     bottom: 10px;
     left: 10px;
+    font-size: 10px;
+  }
+
+  /* Color legend: compact on mobile */
+  .color-legend {
+    top: auto;
+    bottom: 50px;
+    right: 8px;
+    max-height: 30vh;
+    padding: 4px 8px;
+  }
+
+  .color-legend-label {
     font-size: 10px;
   }
 

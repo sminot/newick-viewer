@@ -37,6 +37,7 @@ export class TreeRenderer {
   private root?: TreeNode;
   private contextMenu: HTMLElement | null = null;
   private tipColorMap?: TipColorMap | null;
+  private legendEl: HTMLElement | null = null;
   private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: RendererOptions) {
@@ -324,7 +325,7 @@ export class TreeRenderer {
 
     // Legend (when tip colors are active)
     if (hasTipColors && this.tipColorMap?.legend) {
-      this.renderLegend(layout);
+      this.renderLegend();
     }
 
     // Interactive node hit targets (click to flip, right-click for context menu)
@@ -395,44 +396,31 @@ export class TreeRenderer {
     }
   }
 
-  private renderLegend(layout: LayoutResult): void {
+  private renderLegend(): void {
+    if (this.legendEl) { this.legendEl.remove(); this.legendEl = null; }
     if (!this.tipColorMap?.legend.length) return;
 
-    const legendGroup = this.g.append('g').attr('class', 'legend');
-    const x0 = layout.width - 140;
-    const y0 = 20;
-    const rowHeight = 18;
-    const dotR = 6;
+    const el = document.createElement('div');
+    el.className = 'color-legend';
 
-    // Semi-transparent background
-    const bgHeight = this.tipColorMap.legend.length * rowHeight + 12;
-    legendGroup.append('rect')
-      .attr('x', x0 - 10)
-      .attr('y', y0 - 6)
-      .attr('width', 150)
-      .attr('height', bgHeight)
-      .attr('rx', 4)
-      .attr('fill', 'rgba(255,255,255,0.9)')
-      .attr('stroke', '#dfe1e2')
-      .attr('stroke-width', 1);
+    this.tipColorMap.legend.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'color-legend-item';
 
-    this.tipColorMap.legend.forEach((item, i) => {
-      const y = y0 + i * rowHeight + 6;
-      legendGroup.append('circle')
-        .attr('cx', x0)
-        .attr('cy', y)
-        .attr('r', dotR)
-        .attr('fill', item.color);
+      const dot = document.createElement('span');
+      dot.className = 'color-legend-dot';
+      dot.style.background = item.color;
 
-      legendGroup.append('text')
-        .attr('x', x0 + dotR + 6)
-        .attr('y', y)
-        .attr('dy', '0.35em')
-        .attr('font-size', '11px')
-        .attr('font-family', this.style.fontFamily)
-        .attr('fill', '#1b1b1b')
-        .text(item.category);
+      const label = document.createElement('span');
+      label.className = 'color-legend-label';
+      label.textContent = item.category;
+
+      row.append(dot, label);
+      el.appendChild(row);
     });
+
+    this.legendEl = el;
+    this.container.appendChild(el);
   }
 
   private renderScaleBar(layout: LayoutResult): void {
@@ -636,6 +624,7 @@ export class TreeRenderer {
 
   destroy(): void {
     this.dismissContextMenu();
+    if (this.legendEl) { this.legendEl.remove(); this.legendEl = null; }
     document.removeEventListener('click', this.dismissContextMenuBound);
     d3.select(this.container).selectAll('*').remove();
   }
