@@ -106,10 +106,19 @@ function pushUndo(): void {
     if (undoStack.length > MAX_HISTORY) undoStack.shift();
   }
   redoStack.length = 0; // clear redo on new action
+  updateUndoRedoButtons();
 }
 
 function canUndo(): boolean { return undoStack.length > 0; }
 function canRedo(): boolean { return redoStack.length > 0; }
+
+/** Update just the disabled state of undo/redo toolbar buttons */
+function updateUndoRedoButtons(): void {
+  const btnUndo = document.getElementById('btn-undo') as HTMLButtonElement | null;
+  const btnRedo = document.getElementById('btn-redo') as HTMLButtonElement | null;
+  if (btnUndo) btnUndo.disabled = !canUndo();
+  if (btnRedo) btnRedo.disabled = !canRedo();
+}
 
 function undo(): void {
   if (!canUndo()) return;
@@ -117,7 +126,7 @@ function undo(): void {
   state.newick1 = undoStack.pop()!;
   syncTextarea('newick-input-1', state.newick1);
   renderTree();
-  buildToolbar(); // update button states
+  updateUndoRedoButtons();
 }
 
 function redo(): void {
@@ -126,7 +135,7 @@ function redo(): void {
   state.newick1 = redoStack.pop()!;
   syncTextarea('newick-input-1', state.newick1);
   renderTree();
-  buildToolbar();
+  updateUndoRedoButtons();
 }
 
 function init(): void {
@@ -377,6 +386,7 @@ function buildToolbar(): void {
   undoRedoGroup.className = 'toolbar-group';
 
   const btnUndo = document.createElement('button');
+  btnUndo.id = 'btn-undo';
   btnUndo.className = 'btn-secondary';
   btnUndo.textContent = '\u21A9'; // ↩
   btnUndo.title = 'Undo (Ctrl+Z)';
@@ -385,6 +395,7 @@ function buildToolbar(): void {
   btnUndo.addEventListener('click', undo);
 
   const btnRedo = document.createElement('button');
+  btnRedo.id = 'btn-redo';
   btnRedo.className = 'btn-secondary';
   btnRedo.textContent = '\u21AA'; // ↪
   btnRedo.title = 'Redo (Ctrl+Shift+Z)';
