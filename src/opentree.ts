@@ -153,6 +153,7 @@ export async function getSubtree(
     try {
       const errData = JSON.parse(text);
       if (errData.broken && errData.mrca) {
+        // Try MRCA node in the synthetic tree
         const retryResp = await fetch(`${API_BASE}/tree_of_life/subtree`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -171,12 +172,32 @@ export async function getSubtree(
             supporting_studies: retryData.supporting_studies ?? [],
           };
         }
-        const retryText = await retryResp.text();
-        throw new Error(`OpenTree subtree failed for MRCA ${errData.mrca} (${retryResp.status}): ${retryText}`);
+        // MRCA also failed — fall back to taxonomy subtree
+        const taxResp = await fetch(`${API_BASE}/taxonomy/subtree`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ott_id: ottId,
+            label_format: labelFormat,
+          }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        if (taxResp.ok) {
+          const taxData = await taxResp.json();
+          if (taxData.newick) {
+            return {
+              newick: taxData.newick,
+              supporting_studies: [],
+            };
+          }
+        }
+        throw new Error(
+          `This taxon is fragmented in the Open Tree of Life synthetic tree. ` +
+          `Try using "Induced tree" mode with specific species instead.`
+        );
       }
     } catch (e) {
-      if (e instanceof Error && e.message.startsWith('OpenTree')) throw e;
-      /* fall through to original error */
+      if (e instanceof Error && (e.message.startsWith('This taxon') || e.message.startsWith('OpenTree'))) throw e;
     }
     throw new Error(`OpenTree subtree failed (${resp.status}): ${text}`);
   }
