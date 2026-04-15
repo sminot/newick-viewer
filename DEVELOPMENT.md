@@ -97,7 +97,7 @@ src/
 ├── main.ts            App entry point, UI construction, event wiring
 ├── newick-parser.ts   Newick/NEXUS parser + tree editing operations
 ├── layout.ts          Rectangular and radial layout algorithms
-├── renderer.ts        D3.js SVG renderer with zoom/pan, scale bar, context menu
+├── renderer.ts        D3.js SVG renderer with zoom/pan, scale bar, context menu, search
 ├── tanglegram.ts      Side-by-side tree comparison renderer
 ├── opentree.ts        Open Tree of Life API client
 ├── metadata.ts        CSV/TSV parser and tip color mapping
@@ -158,7 +158,7 @@ To build and deploy:
 2. Register the app in your Cirro tenant
 3. Upload the contents of `dist-cirro/`
 
-The Cirro viewer auto-discovers `.nwk`/`.newick`/`.tree` files in the dataset and provides dropdowns for file and metadata selection. Authentication and file access are handled by the Cirro platform.
+The Cirro viewer auto-discovers `.nwk`/`.newick`/`.tree`/`.nex`/`.nexus` files in the dataset and provides dropdowns for file and metadata selection. Authentication and file access are handled by the Cirro platform.
 
 ## Tech stack
 
@@ -180,6 +180,6 @@ The Cirro viewer auto-discovers `.nwk`/`.newick`/`.tree` files in the dataset an
 
 **State management**: A single `ViewState` object holds all app state (tree data, layout mode, style settings, tanglegram config). It is serialized to the URL hash via LZ-string compression on every change, enabling shareable links. Metadata (CSV tip coloring) is runtime-only and not persisted in the URL.
 
-**Tree editing**: The `TreeNode` is mutated in place by editing operations (flip, prune, reroot, ladderize). After mutation, `toNewick()` serializes back to text and the textarea is updated. A full re-layout and re-render follows.
+**Tree editing**: The `TreeNode` is mutated in place by editing operations (flip, prune, reroot, ladderize). After mutation, `toNewick()` serializes back to text and the textarea is updated. A full re-layout and re-render follows. An undo/redo stack (50 levels) tracks Newick string snapshots before each mutation.
 
 **Tanglegram connections**: Connection line endpoints are measured via `SVG getBBox()` on the rendered label text, so lines originate from the visual end of each label rather than the tree tip node.

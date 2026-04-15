@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub Pages](https://img.shields.io/badge/demo-GitHub_Pages-blue?logo=github)](https://sminot.github.io/newick-viewer/)
 
-A free, browser-based tool for visualizing phylogenetic trees from Newick files. No installation, no sign-up, no server — paste your data or drag a file and see your tree instantly.
+A free, browser-based tool for visualizing phylogenetic trees from Newick and NEXUS files. No installation, no sign-up, no server — paste your data or drag a file and see your tree instantly.
 
 **Try it now: [sminot.github.io/newick-viewer](https://sminot.github.io/newick-viewer/)**
 
@@ -25,7 +25,7 @@ A phylogenetic tree is a branching diagram that shows the evolutionary relations
 
 Paste a Newick or NEXUS string into the text box on the left side of the page. The tree renders automatically as you type (with a short delay). You can also **drag and drop** a `.nwk`, `.tree`, `.nex`, `.nexus`, or `.txt` file anywhere on the page. Click **Load example** to try a built-in primate phylogeny.
 
-The sidebar can be collapsed by clicking **Panel** in the toolbar to maximize the viewer area.
+The sidebar can be collapsed by clicking the **☰** button in the toolbar to maximize the viewer area.
 
 ### What input formats are supported?
 
@@ -109,6 +109,7 @@ The **Display Settings** panel in the sidebar provides:
 
 - **Branch color** and **width**
 - **Label size** and **color**
+- **Tree width and height**: Override the auto-computed layout dimensions (set to 0 for auto-fit). Useful for controlling the aspect ratio before export.
 - **Show branch lengths**: Toggle numeric branch length annotations along branches
 - **Show internal labels**: Toggle bootstrap values or clade names at internal nodes
 
