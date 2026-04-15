@@ -82,4 +82,40 @@ describe('state encoding/decoding', () => {
   it('returns null for empty string', () => {
     expect(decodeState('')).toBeNull();
   });
+
+  it('round-trips a state with metadata', () => {
+    const state: ViewState = {
+      newick1: '(A,B,C);',
+      newick2: '',
+      layout: 'rectangular',
+      style: { ...DEFAULT_STYLE },
+      tanglegram: false,
+      tanglegramStyle: { ...DEFAULT_TANGLEGRAM_STYLE },
+      metadata: 'name,group\nA,X\nB,Y\nC,X',
+      metadataIdCol: 'name',
+      metadataCatCol: 'group',
+    };
+    const encoded = encodeState(state);
+    const decoded = decodeState(encoded);
+    expect(decoded).toEqual(state);
+    expect(decoded!.metadata).toBe('name,group\nA,X\nB,Y\nC,X');
+    expect(decoded!.metadataIdCol).toBe('name');
+    expect(decoded!.metadataCatCol).toBe('group');
+  });
+
+  it('handles older URLs without metadata fields', () => {
+    const oldState = {
+      newick1: '(A,B);',
+      newick2: '',
+      layout: 'rectangular',
+      style: DEFAULT_STYLE,
+      tanglegram: false,
+      tanglegramStyle: { ...DEFAULT_TANGLEGRAM_STYLE },
+    };
+    const encoded = encodeState(oldState as ViewState);
+    const decoded = decodeState(encoded);
+    expect(decoded!.metadata).toBeUndefined();
+    expect(decoded!.metadataIdCol).toBeUndefined();
+    expect(decoded!.metadataCatCol).toBeUndefined();
+  });
 });

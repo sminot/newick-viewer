@@ -24,6 +24,9 @@ export function decodeState(encoded: string): ViewState | null {
       tanglegram: parsed.tanglegram ?? defaults.tanglegram,
       style: { ...defaults.style, ...(parsed.style ?? {}) },
       tanglegramStyle: { ...defaults.tanglegramStyle, ...(parsed.tanglegramStyle ?? {}) },
+      metadata: parsed.metadata ?? undefined,
+      metadataIdCol: parsed.metadataIdCol ?? undefined,
+      metadataCatCol: parsed.metadataCatCol ?? undefined,
     };
   } catch {
     return null;

@@ -71,6 +71,9 @@ export interface ViewState {
   style: StyleOptions;
   tanglegram: boolean;
   tanglegramStyle: TanglegramStyle;
+  metadata?: string;
+  metadataIdCol?: string;
+  metadataCatCol?: string;
 }
 
 export const DEFAULT_TANGLEGRAM_STYLE: TanglegramStyle = {

@@ -70,11 +70,26 @@ let state: ViewState;
 let currentRenderer: TreeRenderer | null = null;
 let currentTanglegram: TanglegramRenderer | null = null;
 
-// Metadata state (runtime only, not persisted in URL — CSV data can be large)
+// Metadata state
 let metadataTable: MetadataTable | null = null;
 let currentTipColorMap: TipColorMap | null = null;
 let metadataIdColumn: string = '';
 let metadataCategoryColumn: string = '';
+
+/** Sync metadata fields into the persisted ViewState */
+function syncMetadataToState(): void {
+  if (metadataTable) {
+    // Re-serialize from the parsed table to get clean CSV
+    const rows = metadataTable.rows.map(r => metadataTable!.headers.map(h => r[h] ?? '').join(','));
+    state.metadata = [metadataTable.headers.join(','), ...rows].join('\n');
+    state.metadataIdCol = metadataIdColumn;
+    state.metadataCatCol = metadataCategoryColumn;
+  } else {
+    state.metadata = undefined;
+    state.metadataIdCol = undefined;
+    state.metadataCatCol = undefined;
+  }
+}
 
 // Undo/redo history for tree edits
 const undoStack: string[] = [];
@@ -117,6 +132,18 @@ function redo(): void {
 function init(): void {
   // Try to restore state from URL
   state = getStateFromURL() ?? defaultViewState();
+
+  // Restore metadata from URL state
+  if (state.metadata) {
+    try {
+      metadataTable = parseCSV(state.metadata);
+      metadataIdColumn = state.metadataIdCol ?? metadataTable.headers[0] ?? '';
+      metadataCategoryColumn = state.metadataCatCol ?? metadataTable.headers[1] ?? '';
+      if (metadataTable.headers.length >= 2) {
+        currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
+      }
+    } catch { /* ignore corrupt metadata in URL */ }
+  }
 
   buildToolbar();
   buildOpenTreePanel();
@@ -791,6 +818,7 @@ function buildInputPanel(): void {
       currentTipColorMap = null;
       buildMetadataPanel();
     }
+    syncMetadataToState();
     renderTree();
     showToast(ex.name);
   });
@@ -839,6 +867,7 @@ function buildMetadataPanel(): void {
             metadataCategoryColumn = metadataTable.headers[1];
             currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
           }
+          syncMetadataToState();
           buildMetadataPanel();
           renderTree();
         } catch (e: any) {
@@ -888,6 +917,7 @@ function buildMetadataPanel(): void {
       metadataIdColumn = idSelect.value;
       metadataCategoryColumn = catSelect.value;
       currentTipColorMap = buildTipColorMap(metadataTable!, metadataIdColumn, metadataCategoryColumn);
+      syncMetadataToState();
       renderTree();
     };
     idSelect.addEventListener('change', updateColors);
@@ -910,6 +940,7 @@ function buildMetadataPanel(): void {
       currentTipColorMap = null;
       metadataIdColumn = '';
       metadataCategoryColumn = '';
+      syncMetadataToState();
       buildMetadataPanel();
       renderTree();
     });
