@@ -120,6 +120,13 @@ html, body {
   border-color: #c6cace;
 }
 
+#toolbar button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: #fff;
+  border-color: var(--border-color);
+}
+
 #toolbar button.active {
   background: var(--primary);
   color: #fff;

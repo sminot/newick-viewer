@@ -23,6 +23,41 @@ let currentTipColorMap: TipColorMap | null = null;
 let metadataIdColumn: string = '';
 let metadataCategoryColumn: string = '';
 
+// Undo/redo history for tree edits
+const undoStack: string[] = [];
+const redoStack: string[] = [];
+const MAX_HISTORY = 50;
+
+/** Push the current newick1 onto the undo stack (call before making a change) */
+function pushUndo(): void {
+  if (state.newick1) {
+    undoStack.push(state.newick1);
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  }
+  redoStack.length = 0; // clear redo on new action
+}
+
+function canUndo(): boolean { return undoStack.length > 0; }
+function canRedo(): boolean { return redoStack.length > 0; }
+
+function undo(): void {
+  if (!canUndo()) return;
+  redoStack.push(state.newick1);
+  state.newick1 = undoStack.pop()!;
+  syncTextarea('newick-input-1', state.newick1);
+  renderTree();
+  buildToolbar(); // update button states
+}
+
+function redo(): void {
+  if (!canRedo()) return;
+  undoStack.push(state.newick1);
+  state.newick1 = redoStack.pop()!;
+  syncTextarea('newick-input-1', state.newick1);
+  renderTree();
+  buildToolbar();
+}
+
 function init(): void {
   // Try to restore state from URL
   state = getStateFromURL() ?? defaultViewState();
@@ -66,6 +101,22 @@ function init(): void {
       e.preventDefault();
       if (currentRenderer && currentRenderer.getCurrentLayout()) {
         currentRenderer.fitToView(currentRenderer.getCurrentLayout()!);
+      }
+    }
+    // Ctrl/Cmd+Z to undo (only when not focused on textarea)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      const active = document.activeElement;
+      if (active?.tagName !== 'TEXTAREA' && active?.tagName !== 'INPUT') {
+        e.preventDefault();
+        undo();
+      }
+    }
+    // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y to redo
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || e.key === 'y') && !(e.key === 'y' && e.shiftKey)) {
+      const active = document.activeElement;
+      if (active?.tagName !== 'TEXTAREA' && active?.tagName !== 'INPUT') {
+        e.preventDefault();
+        redo();
       }
     }
   });
@@ -128,6 +179,7 @@ function renderTree(): void {
         style: state.style,
         tanglegramStyle: state.tanglegramStyle,
         onNodeFlip: () => {
+          pushUndo();
           syncTreeToTextarea(tree1, tree2);
           currentTanglegram!.render();
         },
@@ -147,7 +199,7 @@ function renderTree(): void {
         root: tree1,
         tipColorMap: currentTipColorMap,
         onTreeEdit: (newRoot) => {
-          // Update state and textarea with the (possibly new) root
+          pushUndo();
           const newick = toNewick(newRoot) + ';';
           state.newick1 = newick;
           syncTextarea('newick-input-1', newick);
@@ -222,6 +274,27 @@ function buildToolbar(): void {
     renderTree();
   });
   toolbar.appendChild(btnTangle);
+
+  addSeparator(toolbar);
+
+  // Undo/Redo
+  const undoRedoGroup = document.createElement('div');
+  undoRedoGroup.className = 'toolbar-group';
+
+  const btnUndo = document.createElement('button');
+  btnUndo.textContent = 'Undo';
+  btnUndo.title = 'Undo last edit (Ctrl+Z)';
+  btnUndo.disabled = !canUndo();
+  btnUndo.addEventListener('click', undo);
+
+  const btnRedo = document.createElement('button');
+  btnRedo.textContent = 'Redo';
+  btnRedo.title = 'Redo (Ctrl+Shift+Z)';
+  btnRedo.disabled = !canRedo();
+  btnRedo.addEventListener('click', redo);
+
+  undoRedoGroup.append(btnUndo, btnRedo);
+  toolbar.appendChild(undoRedoGroup);
 
   addSeparator(toolbar);
 
@@ -492,6 +565,7 @@ function buildOpenTreePanel(): void {
       if (!newick) throw new Error('Empty tree returned from OpenTree');
 
       // Load into the main textarea and render
+      pushUndo();
       state.newick1 = newick;
       const ta1 = document.getElementById('newick-input-1') as HTMLTextAreaElement;
       if (ta1) ta1.value = newick;
@@ -525,8 +599,12 @@ function buildInputPanel(): void {
   ta1.addEventListener('input', () => {
     clearTimeout(inputTimer1);
     inputTimer1 = setTimeout(() => {
-      state.newick1 = ta1.value.trim();
-      renderTree();
+      const newVal = ta1.value.trim();
+      if (newVal !== state.newick1) {
+        pushUndo();
+        state.newick1 = newVal;
+        renderTree();
+      }
     }, 400);
   });
   panel.appendChild(ta1);
@@ -544,6 +622,7 @@ function buildInputPanel(): void {
     const file = fileInput1.files?.[0];
     if (file) {
       file.text().then((text) => {
+        pushUndo();
         ta1.value = text.trim();
         state.newick1 = text.trim();
         renderTree();
@@ -606,6 +685,7 @@ function buildInputPanel(): void {
   const btnExample = document.createElement('button');
   btnExample.textContent = 'Load example';
   btnExample.addEventListener('click', () => {
+    pushUndo();
     ta1.value = EXAMPLE_TREE_1;
     state.newick1 = EXAMPLE_TREE_1;
     if (state.tanglegram) {
@@ -1006,6 +1086,7 @@ function setupDragDrop(): void {
       if (!file) return;
 
       file.text().then((text) => {
+        pushUndo();
         const trimmed = text.trim();
         const ta1 = document.getElementById('newick-input-1') as HTMLTextAreaElement;
         if (ta1) ta1.value = trimmed;
