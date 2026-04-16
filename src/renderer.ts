@@ -362,11 +362,16 @@ export class TreeRenderer {
         .attr('stroke', 'transparent')
         .attr('stroke-width', 1)
         .attr('cursor', 'pointer')
-        .on('mouseenter', function () {
+        .on('mouseenter', function (event, d) {
           d3.select(this).attr('fill', 'rgba(0,0,0,0.06)').attr('stroke', '#71767a');
+          if (d.node.children.length === 0) self.showTooltip(event, d.node);
+        })
+        .on('mousemove', function (event, d) {
+          if (d.node.children.length === 0) self.moveTooltip(event);
         })
         .on('mouseleave', function () {
           d3.select(this).attr('fill', 'transparent').attr('stroke', 'transparent');
+          self.hideTooltip();
         })
         .on('click', function (_event, d) {
           if (d.node.children.length > 0) {
@@ -474,19 +479,23 @@ export class TreeRenderer {
     return null;
   }
 
-  /** Attach hover tooltips to all leaf labels in the given group */
+  /** Attach hover tooltips to leaf labels and leaf dot circles */
   private attachLeafTooltips(nodeGroup: d3.Selection<SVGGElement, unknown, null, undefined>): void {
     const self = this;
-    nodeGroup.selectAll<SVGTextElement, LayoutNode>('text.leaf-label')
-      .on('mouseenter', function (event, d) {
-        self.showTooltip(event, d.node);
-      })
-      .on('mousemove', function (event) {
-        self.moveTooltip(event);
-      })
-      .on('mouseleave', function () {
-        self.hideTooltip();
-      });
+    const attach = (sel: d3.Selection<any, LayoutNode, any, unknown>) => {
+      sel
+        .on('mouseenter', function (event: MouseEvent, d: LayoutNode) {
+          self.showTooltip(event, d.node);
+        })
+        .on('mousemove', function (event: MouseEvent) {
+          self.moveTooltip(event);
+        })
+        .on('mouseleave', function () {
+          self.hideTooltip();
+        });
+    };
+    attach(nodeGroup.selectAll<SVGTextElement, LayoutNode>('text.leaf-label'));
+    attach(nodeGroup.selectAll<SVGCircleElement, LayoutNode>('circle.leaf-node'));
   }
 
   private showTooltip(event: MouseEvent, node: TreeNode): void {
@@ -504,9 +513,7 @@ export class TreeRenderer {
 
     const row = this.getMetadataRow(node.name);
     if (row) {
-      const idCol = this.metadataTable!.headers[0];
       for (const header of this.metadataTable!.headers) {
-        if (header === idCol) continue; // skip the ID column — already shown as name
         const val = row[header];
         if (val) {
           html += `<div class="tip-tooltip-row"><span class="tip-tooltip-key">${escapeForTooltip(header)}</span><span>${escapeForTooltip(val)}</span></div>`;
