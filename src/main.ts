@@ -98,6 +98,7 @@ const MAX_HISTORY = 50;
 
 // Track whether the first render has happened (for mobile auto-collapse)
 let hasRenderedOnce = false;
+let lastRenderedNewick = ''; // Track tree content to detect structural changes
 
 /** Push the current newick1 onto the undo stack (call before making a change) */
 function pushUndo(): void {
@@ -306,13 +307,16 @@ function renderTree(): void {
         },
       });
 
-      // Restore previous zoom/pan, or auto-fit on first render
-      if (prevTransform && hasRenderedOnce) {
+      // Preserve zoom/pan for style-only changes; fit to view for new trees
+      const treeChanged = state.newick1 !== lastRenderedNewick;
+      if (prevTransform && hasRenderedOnce && !treeChanged) {
         currentRenderer.setTransform(prevTransform);
-      } else if (!hasRenderedOnce || treeHeight > autoH || w > autoW) {
+      } else {
         currentRenderer.fitToView(layout);
       }
     }
+
+    lastRenderedNewick = state.newick1;
 
     // Show tree stats
     const maxBL = getMaxBranchLength(tree1);
