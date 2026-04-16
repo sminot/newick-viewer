@@ -129,8 +129,28 @@ export async function getInducedSubtree(
   };
 }
 
+/** Try fetching a taxonomy-only subtree (no branch lengths, but always available) */
+async function fetchTaxonomySubtree(
+  ottId: number,
+  labelFormat: string
+): Promise<SubtreeResult | null> {
+  try {
+    const resp = await fetch(`${API_BASE}/taxonomy/subtree`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ott_id: ottId, label_format: labelFormat }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.newick) return { newick: data.newick, supporting_studies: [] };
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
 /** Get a subtree rooted at a specific OTT ID (returns Newick).
- *  If the taxon is "broken" in the synthetic tree, falls back to the MRCA node. */
+ *  If the taxon is "broken" or pruned, falls back to taxonomy subtree. */
 export async function getSubtree(
   ottId: number,
   heightLimit: number = 3,
@@ -152,6 +172,18 @@ export async function getSubtree(
     const text = await resp.text();
     try {
       const errData = JSON.parse(text);
+      const reason = errData.reason ?? '';
+
+      // Taxon pruned from synthetic tree or not found — try taxonomy API
+      if (reason === 'pruned_ott_id' || reason === 'ott_id_not_in_tree') {
+        const taxResult = await fetchTaxonomySubtree(ottId, labelFormat);
+        if (taxResult) return taxResult;
+        throw new Error(
+          `This taxon (ott${ottId}) is not in the synthetic tree (${reason.replace(/_/g, ' ')}). ` +
+          `Try a parent taxon or use "Induced tree" mode with specific species.`
+        );
+      }
+
       if (errData.broken && errData.mrca) {
         // Try MRCA node in the synthetic tree
         const retryResp = await fetch(`${API_BASE}/tree_of_life/subtree`, {
@@ -173,24 +205,8 @@ export async function getSubtree(
           };
         }
         // MRCA also failed — fall back to taxonomy subtree
-        const taxResp = await fetch(`${API_BASE}/taxonomy/subtree`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ott_id: ottId,
-            label_format: labelFormat,
-          }),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        });
-        if (taxResp.ok) {
-          const taxData = await taxResp.json();
-          if (taxData.newick) {
-            return {
-              newick: taxData.newick,
-              supporting_studies: [],
-            };
-          }
-        }
+        const taxResult = await fetchTaxonomySubtree(ottId, labelFormat);
+        if (taxResult) return taxResult;
         throw new Error(
           `This taxon is fragmented in the Open Tree of Life synthetic tree. ` +
           `Try using "Induced tree" mode with specific species instead.`
