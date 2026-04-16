@@ -275,9 +275,6 @@ export class TreeRenderer {
         .text((d) => formatLeafName(d.node.name));
     }
 
-    // Tooltip on hover for leaf labels
-    this.attachLeafTooltips(nodeGroup);
-
     // Internal node labels
     if (this.style.showInternalLabels) {
       nodeGroup.selectAll('text.internal-label')
@@ -413,6 +410,9 @@ export class TreeRenderer {
     // Remove any stale tooltip from previous render
     if (this.tooltip) { this.tooltip.remove(); this.tooltip = null; }
 
+    // Tooltip on hover for leaf labels and leaf dot circles
+    this.attachLeafTooltips(nodeGroup);
+
     // Scale bar (rectangular layout only, when branch lengths exist)
     if (this.layoutType === 'rectangular') {
       this.renderScaleBar(layout);
@@ -479,23 +479,22 @@ export class TreeRenderer {
     return null;
   }
 
-  /** Attach hover tooltips to leaf labels and leaf dot circles */
+  /** Attach hover tooltips to leaf labels */
   private attachLeafTooltips(nodeGroup: d3.Selection<SVGGElement, unknown, null, undefined>): void {
     const self = this;
-    const attach = (sel: d3.Selection<any, LayoutNode, any, unknown>) => {
-      sel
-        .on('mouseenter', function (event: MouseEvent, d: LayoutNode) {
-          self.showTooltip(event, d.node);
-        })
-        .on('mousemove', function (event: MouseEvent) {
-          self.moveTooltip(event);
-        })
-        .on('mouseleave', function () {
-          self.hideTooltip();
-        });
-    };
-    attach(nodeGroup.selectAll<SVGTextElement, LayoutNode>('text.leaf-label'));
-    attach(nodeGroup.selectAll<SVGCircleElement, LayoutNode>('circle.leaf-node'));
+    // Leaf label text — not covered by node-target circles, so needs its own handlers
+    nodeGroup.selectAll<SVGTextElement, LayoutNode>('text.leaf-label')
+      .on('mouseenter', function (event: MouseEvent, d: LayoutNode) {
+        self.showTooltip(event, d.node);
+      })
+      .on('mousemove', function (event: MouseEvent) {
+        self.moveTooltip(event);
+      })
+      .on('mouseleave', function () {
+        self.hideTooltip();
+      });
+    // Leaf dot circles are covered by node-target circles which
+    // already have tooltip handlers (added in the node-target block)
   }
 
   private showTooltip(event: MouseEvent, node: TreeNode): void {
