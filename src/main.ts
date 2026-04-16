@@ -701,6 +701,14 @@ function buildOpenTreePanel(): void {
 
       if (!newick) throw new Error('Empty tree returned from OpenTree');
 
+      // Clear any existing metadata (not relevant to the new OpenTree tree)
+      metadataTable = null;
+      currentTipColorMap = null;
+      metadataIdColumn = '';
+      metadataCategoryColumn = '';
+      syncMetadataToState();
+      buildMetadataPanel();
+
       // Load into the main textarea and render
       pushUndo();
       state.newick1 = newick;
@@ -954,6 +962,10 @@ function buildMetadataPanel(): void {
       metadataIdColumn = idSelect.value;
       metadataCategoryColumn = catSelect.value;
       currentTipColorMap = buildTipColorMap(metadataTable!, metadataIdColumn, metadataCategoryColumn);
+      // Update stats
+      const nCat = currentTipColorMap.legend.length;
+      const nMap = currentTipColorMap.colorByTip.size;
+      stats.textContent = `${nMap} tips mapped, ${nCat} categories`;
       syncMetadataToState();
       renderTree();
     };
