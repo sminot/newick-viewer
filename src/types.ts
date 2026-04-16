@@ -54,6 +54,7 @@ export interface StyleOptions {
   branchWidth: number;
   leafLabelSize: number;
   internalLabelSize: number;
+  legendLabelSize: number;
   showBranchLengths: boolean;
   showInternalLabels: boolean;
   leafLabelColor: string;
@@ -89,6 +90,7 @@ export const DEFAULT_STYLE: StyleOptions = {
   branchWidth: 1.5,
   leafLabelSize: 13,
   internalLabelSize: 11,
+  legendLabelSize: 11,
   showBranchLengths: false,
   showInternalLabels: false,
   leafLabelColor: '#1b1b1b',

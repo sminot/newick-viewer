@@ -405,8 +405,9 @@ export class TreeRenderer {
     const legendMargin = 30;
     const x0 = bbox.x + bbox.width + legendMargin;
     const y0 = bbox.y + 10;
-    const rowHeight = 18;
-    const dotR = 5;
+    const fontSize = this.style.legendLabelSize;
+    const rowHeight = fontSize + 6;
+    const dotR = Math.max(3, Math.round(fontSize * 0.45));
 
     const legendGroup = this.g.append('g').attr('class', 'legend');
 
@@ -434,7 +435,7 @@ export class TreeRenderer {
         .attr('x', x0 + dotR + 8)
         .attr('y', y)
         .attr('dy', '0.35em')
-        .attr('font-size', '11px')
+        .attr('font-size', fontSize + 'px')
         .attr('font-family', this.style.fontFamily)
         .attr('fill', '#1b1b1b')
         .text(item.category);

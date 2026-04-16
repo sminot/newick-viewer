@@ -1013,6 +1013,12 @@ function buildControlsPanel(): void {
     debouncedRenderTree();
   });
 
+  // Legend label size
+  addRangeControl(panel, 'Legend size (px)', state.style.legendLabelSize, 6, 28, 1, (v) => {
+    state.style.legendLabelSize = v;
+    debouncedRenderTree();
+  });
+
   // Tree dimensions (auto checkbox + stepper)
   const viewer = document.getElementById('viewer')!;
   addDimensionControl(panel, 'Tree width', state.style.canvasWidth,
