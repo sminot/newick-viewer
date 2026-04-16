@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import { TreeNode, LayoutResult, StyleOptions, TanglegramStyle } from './types';
 import { computeLayout } from './layout';
+import type { TipColorMap } from './metadata';
 
 export interface TanglegramOptions {
   container: HTMLElement;
@@ -9,6 +10,7 @@ export interface TanglegramOptions {
   style: StyleOptions;
   tanglegramStyle: TanglegramStyle;
   onNodeFlip?: () => void;
+  tipColorMap?: TipColorMap | null;
 }
 
 /**
@@ -88,6 +90,54 @@ export class TanglegramRenderer {
 
     // Draw connecting lines between matching leaves
     this.drawConnections(leftLabelEnds, rightLabelEnds, tanglegramStyle);
+
+    // Color legend
+    const tcm = this.options.tipColorMap;
+    if (tcm && tcm.colorByTip.size > 0 && tcm.legend.length > 0) {
+      this.renderLegend(tcm);
+    }
+  }
+
+  private renderLegend(tcm: TipColorMap): void {
+    const gNode = this.g.node();
+    if (!gNode) return;
+    const bbox = gNode.getBBox();
+    const legendMargin = 30;
+    const x0 = bbox.x + bbox.width + legendMargin;
+    const y0 = bbox.y + 10;
+    const rowHeight = 18;
+    const dotR = 5;
+
+    const legendGroup = this.g.append('g').attr('class', 'legend');
+
+    const bgHeight = tcm.legend.length * rowHeight + 12;
+    legendGroup.append('rect')
+      .attr('x', x0 - 10)
+      .attr('y', y0 - 6)
+      .attr('width', 150)
+      .attr('height', bgHeight)
+      .attr('rx', 4)
+      .attr('fill', 'rgba(255,255,255,0.9)')
+      .attr('stroke', '#dfe1e2')
+      .attr('stroke-width', 1);
+
+    tcm.legend.forEach((item, i) => {
+      const y = y0 + i * rowHeight + 6;
+      legendGroup.append('circle')
+        .attr('cx', x0)
+        .attr('cy', y)
+        .attr('r', dotR)
+        .attr('fill', item.color);
+
+      legendGroup.append('text')
+        .attr('x', x0 + dotR + 8)
+        .attr('y', y)
+        .attr('dy', '0.35em')
+        .attr('font-size', '11px')
+        .attr('font-family', this.options.style.fontFamily)
+        .attr('fill', '#1b1b1b')
+        .text(item.category);
+    });
   }
 
   /**
@@ -101,6 +151,14 @@ export class TanglegramRenderer {
     side: 'left' | 'right'
   ): Map<string, { x: number; y: number }> {
     const group = this.g.append('g').attr('class', `tree-${side}`);
+
+    // Tip color lookup
+    const tcm = this.options.tipColorMap?.colorByTip;
+    const tipColor = (name: string): string => {
+      if (!tcm) return style.leafLabelColor;
+      return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? style.leafLabelColor;
+    };
+    const hasTipColors = tcm && tcm.size > 0;
 
     // Edges with elbow connectors
     group.selectAll('path.branch')
@@ -132,7 +190,7 @@ export class TanglegramRenderer {
       .attr('text-anchor', side === 'left' ? 'start' : 'end')
       .attr('font-size', style.leafLabelSize + 'px')
       .attr('font-family', style.fontFamily)
-      .attr('fill', style.leafLabelColor)
+      .attr('fill', (d) => tipColor(d.node.name))
       .attr('font-style', 'italic')
       .text((d) => d.node.name.replace(/_/g, ' '));
 
@@ -144,8 +202,8 @@ export class TanglegramRenderer {
       .attr('class', 'leaf-node')
       .attr('cx', (d) => d.x)
       .attr('cy', (d) => d.y)
-      .attr('r', 2)
-      .attr('fill', style.branchColor);
+      .attr('r', hasTipColors ? 4 : 2)
+      .attr('fill', (d) => tipColor(d.node.name));
 
     // Clickable internal node circles (for flipping child order)
     const internalNodes = layout.nodes.filter((n) => n.node.children.length > 0);

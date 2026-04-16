@@ -99,6 +99,7 @@ const MAX_HISTORY = 50;
 // Track whether the first render has happened (for mobile auto-collapse)
 let hasRenderedOnce = false;
 let lastRenderedNewick = ''; // Track tree content to detect structural changes
+let lastRenderedLayout: string = ''; // Track layout type for zoom preservation
 
 /** Push the current newick1 onto the undo stack (call before making a change) */
 function pushUndo(): void {
@@ -253,10 +254,18 @@ function renderTree(): void {
 
     // Use user-specified dimensions or auto-compute from viewer/leaf count
     const leafCount = getLeafNames(tree1).length;
-    const w = state.style.canvasWidth > 0 ? state.style.canvasWidth : autoW;
-    const treeHeight = state.style.canvasHeight > 0
-      ? state.style.canvasHeight
-      : Math.max(autoH, leafCount * (state.style.leafLabelSize + 8));
+    let w: number, treeHeight: number;
+    if (state.layout === 'radial') {
+      // Radial layout needs roughly square dimensions
+      const side = Math.max(autoW, autoH);
+      w = state.style.canvasWidth > 0 ? state.style.canvasWidth : side;
+      treeHeight = state.style.canvasHeight > 0 ? state.style.canvasHeight : side;
+    } else {
+      w = state.style.canvasWidth > 0 ? state.style.canvasWidth : autoW;
+      treeHeight = state.style.canvasHeight > 0
+        ? state.style.canvasHeight
+        : Math.max(autoH, leafCount * (state.style.leafLabelSize + 8));
+    }
 
     if (state.tanglegram && state.newick2) {
       // Tanglegram mode
@@ -274,6 +283,7 @@ function renderTree(): void {
         tree2,
         style: state.style,
         tanglegramStyle: state.tanglegramStyle,
+        tipColorMap: currentTipColorMap,
         onNodeFlip: () => {
           pushUndo();
           syncTreeToTextarea(tree1, tree2);
@@ -307,9 +317,10 @@ function renderTree(): void {
         },
       });
 
-      // Preserve zoom/pan for style-only changes; fit to view for new trees
+      // Preserve zoom/pan for style-only changes; fit to view for new trees or layout switches
       const treeChanged = state.newick1 !== lastRenderedNewick;
-      if (prevTransform && hasRenderedOnce && !treeChanged) {
+      const layoutChanged = state.layout !== lastRenderedLayout;
+      if (prevTransform && hasRenderedOnce && !treeChanged && !layoutChanged) {
         currentRenderer.setTransform(prevTransform);
       } else {
         currentRenderer.fitToView(layout);
@@ -317,6 +328,7 @@ function renderTree(): void {
     }
 
     lastRenderedNewick = state.newick1;
+    lastRenderedLayout = state.layout;
 
     // Show tree stats
     const maxBL = getMaxBranchLength(tree1);

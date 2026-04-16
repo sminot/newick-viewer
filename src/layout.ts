@@ -95,7 +95,7 @@ export function computeRadialLayout(
 
   const cx = width / 2;
   const cy = height / 2;
-  const maxRadius = Math.min(width, height) / 2 - 100;
+  const maxRadius = Math.max(50, Math.min(width, height) / 2 - 100);
 
   const nodes: LayoutNode[] = [];
   const nodeMap = new Map<TreeNode, LayoutNode>();
