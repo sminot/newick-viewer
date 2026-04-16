@@ -307,6 +307,8 @@ function renderTree(): void {
         layoutType: state.layout,
         root: tree1,
         tipColorMap: currentTipColorMap,
+        metadataTable: metadataTable,
+        metadataIdColumn: metadataIdColumn,
         onTreeEdit: (newRoot) => {
           pushUndo();
           const newick = toNewick(newRoot) + ';';

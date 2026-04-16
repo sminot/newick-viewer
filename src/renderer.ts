@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { LayoutResult, LayoutNode, StyleOptions, LayoutType, TreeNode } from './types';
 import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
-import type { TipColorMap } from './metadata';
+import type { TipColorMap, MetadataTable } from './metadata';
 
 function isTouchDevice(): boolean {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -10,6 +10,10 @@ function isTouchDevice(): boolean {
 /** Format leaf names: replace underscores with spaces (Newick convention) */
 function formatLeafName(name: string): string {
   return name.replace(/_/g, ' ');
+}
+
+function escapeForTooltip(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export type TreeEditAction = 'flip' | 'prune' | 'keep' | 'reroot' | 'ladderize-desc' | 'ladderize-asc';
@@ -23,6 +27,10 @@ export interface RendererOptions {
   root?: TreeNode;
   /** Optional tip color map from CSV metadata */
   tipColorMap?: TipColorMap | null;
+  /** Full metadata table for tooltips */
+  metadataTable?: MetadataTable | null;
+  /** Which column in the metadata table holds tip IDs */
+  metadataIdColumn?: string;
 }
 
 export class TreeRenderer {
@@ -37,6 +45,9 @@ export class TreeRenderer {
   private root?: TreeNode;
   private contextMenu: HTMLElement | null = null;
   private tipColorMap?: TipColorMap | null;
+  private metadataTable?: MetadataTable | null;
+  private metadataIdColumn?: string;
+  private tooltip: HTMLElement | null = null;
   private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: RendererOptions) {
@@ -46,6 +57,8 @@ export class TreeRenderer {
     this.onTreeEdit = options.onTreeEdit;
     this.root = options.root;
     this.tipColorMap = options.tipColorMap;
+    this.metadataTable = options.metadataTable;
+    this.metadataIdColumn = options.metadataIdColumn;
     this.init();
     this.render(options.layout);
   }
@@ -262,6 +275,9 @@ export class TreeRenderer {
         .text((d) => formatLeafName(d.node.name));
     }
 
+    // Tooltip on hover for leaf labels
+    this.attachLeafTooltips(nodeGroup);
+
     // Internal node labels
     if (this.style.showInternalLabels) {
       nodeGroup.selectAll('text.internal-label')
@@ -389,6 +405,9 @@ export class TreeRenderer {
       document.addEventListener('click', this.dismissContextMenuBound);
     }
 
+    // Remove any stale tooltip from previous render
+    if (this.tooltip) { this.tooltip.remove(); this.tooltip = null; }
+
     // Scale bar (rectangular layout only, when branch lengths exist)
     if (this.layoutType === 'rectangular') {
       this.renderScaleBar(layout);
@@ -440,6 +459,82 @@ export class TreeRenderer {
         .attr('fill', '#1b1b1b')
         .text(item.category);
     });
+  }
+
+  /** Look up metadata row for a tip name, trying underscore/space variants */
+  private getMetadataRow(name: string): Record<string, string> | null {
+    if (!this.metadataTable) return null;
+    const idCol = this.metadataIdColumn ?? this.metadataTable.headers[0];
+    for (const row of this.metadataTable.rows) {
+      const id = row[idCol];
+      if (id === name || id === name.replace(/_/g, ' ') || id === name.replace(/ /g, '_')) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  /** Attach hover tooltips to all leaf labels in the given group */
+  private attachLeafTooltips(nodeGroup: d3.Selection<SVGGElement, unknown, null, undefined>): void {
+    const self = this;
+    nodeGroup.selectAll<SVGTextElement, LayoutNode>('text.leaf-label')
+      .on('mouseenter', function (event, d) {
+        self.showTooltip(event, d.node);
+      })
+      .on('mousemove', function (event) {
+        self.moveTooltip(event);
+      })
+      .on('mouseleave', function () {
+        self.hideTooltip();
+      });
+  }
+
+  private showTooltip(event: MouseEvent, node: TreeNode): void {
+    this.hideTooltip();
+
+    const tip = document.createElement('div');
+    tip.className = 'tip-tooltip';
+
+    const name = formatLeafName(node.name);
+    let html = `<div class="tip-tooltip-name">${escapeForTooltip(name)}</div>`;
+
+    if (node.branchLength !== null) {
+      html += `<div class="tip-tooltip-row"><span class="tip-tooltip-key">Branch length</span><span>${node.branchLength}</span></div>`;
+    }
+
+    const row = this.getMetadataRow(node.name);
+    if (row) {
+      const idCol = this.metadataTable!.headers[0];
+      for (const header of this.metadataTable!.headers) {
+        if (header === idCol) continue; // skip the ID column — already shown as name
+        const val = row[header];
+        if (val) {
+          html += `<div class="tip-tooltip-row"><span class="tip-tooltip-key">${escapeForTooltip(header)}</span><span>${escapeForTooltip(val)}</span></div>`;
+        }
+      }
+    }
+
+    tip.innerHTML = html;
+    document.body.appendChild(tip);
+    this.tooltip = tip;
+    this.moveTooltip(event);
+  }
+
+  private moveTooltip(event: MouseEvent): void {
+    if (!this.tooltip) return;
+    const pad = 12;
+    let x = event.clientX + pad;
+    let y = event.clientY + pad;
+    // Keep within viewport
+    const rect = this.tooltip.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth) x = event.clientX - rect.width - pad;
+    if (y + rect.height > window.innerHeight) y = event.clientY - rect.height - pad;
+    this.tooltip.style.left = x + 'px';
+    this.tooltip.style.top = y + 'px';
+  }
+
+  private hideTooltip(): void {
+    if (this.tooltip) { this.tooltip.remove(); this.tooltip = null; }
   }
 
   private renderScaleBar(layout: LayoutResult): void {
@@ -662,6 +757,7 @@ export class TreeRenderer {
 
   destroy(): void {
     this.dismissContextMenu();
+    this.hideTooltip();
     document.removeEventListener('click', this.dismissContextMenuBound);
     d3.select(this.container).selectAll('*').remove();
   }
