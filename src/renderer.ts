@@ -470,8 +470,11 @@ export class TreeRenderer {
     const scaleBarValue = this.niceRound(targetBarValue);
     const scaleBarPx = scaleBarValue * pixelsPerUnit;
 
-    // Position at bottom-left of the tree area
-    const barY = layout.height - 15;
+    // Position below the bottommost leaf label
+    const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
+    const maxLeafY = leafNodes.reduce((max, n) => Math.max(max, n.y), 0);
+    const labelOffset = this.style.leafLabelSize / 2; // half the text height
+    const barY = maxLeafY + labelOffset + 20;
     const barX = minX;
 
     const scaleGroup = this.g.append('g').attr('class', 'scale-bar');
