@@ -285,6 +285,9 @@ function renderTree(): void {
 
       const layout = computeLayout(tree1, state.layout, w, treeHeight);
 
+      // Preserve zoom/pan transform across re-renders
+      const prevTransform = currentRenderer ? currentRenderer.getTransform() : null;
+
       if (currentRenderer) currentRenderer.destroy();
       currentRenderer = new TreeRenderer({
         container: viewer,
@@ -303,8 +306,10 @@ function renderTree(): void {
         },
       });
 
-      // Auto-fit: on first render always, or when tree exceeds viewport
-      if (!hasRenderedOnce || treeHeight > autoH || w > autoW) {
+      // Restore previous zoom/pan, or auto-fit on first render
+      if (prevTransform && hasRenderedOnce) {
+        currentRenderer.setTransform(prevTransform);
+      } else if (!hasRenderedOnce || treeHeight > autoH || w > autoW) {
         currentRenderer.fitToView(layout);
       }
     }

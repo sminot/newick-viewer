@@ -530,6 +530,16 @@ export class TreeRenderer {
     return this.currentLayout;
   }
 
+  /** Return the current zoom/pan transform */
+  getTransform(): d3.ZoomTransform {
+    return d3.zoomTransform(this.svg.node()!);
+  }
+
+  /** Restore a previously saved zoom/pan transform (no animation) */
+  setTransform(t: d3.ZoomTransform): void {
+    this.svg.call(this.zoom.transform, t);
+  }
+
   resetZoom(): void {
     this.svg.transition().duration(300).call(
       this.zoom.transform,
