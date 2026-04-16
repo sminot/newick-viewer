@@ -608,6 +608,8 @@ function buildOpenTreePanel(): void {
   searchInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
     if (autocompleteController) autocompleteController.abort();
+    // Clear stale OTT ID so a new lookup is forced on Load
+    delete searchInput.dataset.ottId;
     const query = searchInput.value.trim();
     if (query.length < 2) {
       dropdown.innerHTML = '';
