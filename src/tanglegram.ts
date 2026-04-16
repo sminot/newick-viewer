@@ -111,17 +111,6 @@ export class TanglegramRenderer {
 
     const legendGroup = this.g.append('g').attr('class', 'legend');
 
-    const bgHeight = tcm.legend.length * rowHeight + 12;
-    legendGroup.append('rect')
-      .attr('x', x0 - 10)
-      .attr('y', y0 - 6)
-      .attr('width', 150)
-      .attr('height', bgHeight)
-      .attr('rx', 4)
-      .attr('fill', 'rgba(255,255,255,0.9)')
-      .attr('stroke', '#dfe1e2')
-      .attr('stroke-width', 1);
-
     tcm.legend.forEach((item, i) => {
       const y = y0 + i * rowHeight + 6;
       legendGroup.append('circle')
@@ -139,6 +128,20 @@ export class TanglegramRenderer {
         .attr('fill', '#1b1b1b')
         .text(item.category);
     });
+
+    const contentBBox = legendGroup.node()!.getBBox();
+    const bgPadX = 10;
+    const bgPadY = 6;
+    const bgHeight = tcm.legend.length * rowHeight + 12;
+    legendGroup.insert('rect', ':first-child')
+      .attr('x', contentBBox.x - bgPadX)
+      .attr('y', y0 - bgPadY)
+      .attr('width', contentBBox.width + bgPadX * 2)
+      .attr('height', bgHeight)
+      .attr('rx', 4)
+      .attr('fill', 'rgba(255,255,255,0.9)')
+      .attr('stroke', '#dfe1e2')
+      .attr('stroke-width', 1);
   }
 
   /**

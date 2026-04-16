@@ -435,18 +435,7 @@ export class TreeRenderer {
 
     const legendGroup = this.g.append('g').attr('class', 'legend');
 
-    // Semi-transparent background
-    const bgHeight = this.tipColorMap.legend.length * rowHeight + 12;
-    legendGroup.append('rect')
-      .attr('x', x0 - 10)
-      .attr('y', y0 - 6)
-      .attr('width', 150)
-      .attr('height', bgHeight)
-      .attr('rx', 4)
-      .attr('fill', 'rgba(255,255,255,0.9)')
-      .attr('stroke', '#dfe1e2')
-      .attr('stroke-width', 1);
-
+    // Render dots and labels first to measure text width
     this.tipColorMap.legend.forEach((item, i) => {
       const y = y0 + i * rowHeight + 6;
       legendGroup.append('circle')
@@ -464,6 +453,21 @@ export class TreeRenderer {
         .attr('fill', '#1b1b1b')
         .text(item.category);
     });
+
+    // Measure actual content width and insert background behind everything
+    const contentBBox = legendGroup.node()!.getBBox();
+    const bgPadX = 10;
+    const bgPadY = 6;
+    const bgHeight = this.tipColorMap.legend.length * rowHeight + 12;
+    legendGroup.insert('rect', ':first-child')
+      .attr('x', contentBBox.x - bgPadX)
+      .attr('y', y0 - bgPadY)
+      .attr('width', contentBBox.width + bgPadX * 2)
+      .attr('height', bgHeight)
+      .attr('rx', 4)
+      .attr('fill', 'rgba(255,255,255,0.9)')
+      .attr('stroke', '#dfe1e2')
+      .attr('stroke-width', 1);
   }
 
   /** Look up metadata row for a tip name, trying underscore/space variants */
