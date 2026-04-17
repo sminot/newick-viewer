@@ -937,3 +937,43 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
     min-height: 45vh;
   }
 }
+
+/* Embed mode */
+.embed-mode #app {
+  height: 100vh;
+}
+
+.embed-mode #main {
+  height: 100vh;
+}
+
+.embed-mode #viewer {
+  width: 100%;
+  height: 100%;
+}
+
+.embed-open-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  font-size: 16px;
+  color: #333;
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.embed-open-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.95);
+}

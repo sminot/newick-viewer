@@ -4,7 +4,7 @@ import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
 import { ViewState, DEFAULT_STYLE, TreeNode } from './types';
-import { getStateFromURL, setStateInURL, getShareableURL, defaultViewState } from './state';
+import { getStateFromURL, setStateInURL, getShareableURL, getEmbedURL, isEmbedMode, defaultViewState } from './state';
 import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
 import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './opentree';
 import { parseCSV, buildTipColorMap, MetadataTable, TipColorMap } from './metadata';
@@ -140,6 +140,29 @@ function redo(): void {
   updateUndoRedoButtons();
 }
 
+function initEmbedMode(): void {
+  document.body.classList.add('embed-mode');
+
+  // Hide sidebar and toolbar entirely
+  const toolbar = document.getElementById('toolbar')!;
+  toolbar.style.display = 'none';
+  const sidebar = document.getElementById('sidebar')!;
+  sidebar.style.display = 'none';
+
+  renderTree();
+
+  // Add "open in new tab" button overlay
+  const viewer = document.getElementById('viewer')!;
+  const openBtn = document.createElement('a');
+  openBtn.className = 'embed-open-btn';
+  openBtn.title = 'Open in Tree Viewer';
+  openBtn.target = '_blank';
+  openBtn.rel = 'noopener';
+  openBtn.href = getShareableURL(state);
+  openBtn.textContent = '\u2197'; // ↗
+  viewer.appendChild(openBtn);
+}
+
 function init(): void {
   // Try to restore state from URL
   state = getStateFromURL() ?? defaultViewState();
@@ -154,6 +177,11 @@ function init(): void {
         currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
       }
     } catch { /* ignore corrupt metadata in URL */ }
+  }
+
+  if (isEmbedMode()) {
+    initEmbedMode();
+    return;
   }
 
   buildToolbar();
@@ -446,7 +474,7 @@ function buildToolbar(): void {
   spacer.className = 'toolbar-spacer';
   toolbar.appendChild(spacer);
 
-  // Share button (prominent)
+  // Share buttons
   const btnCopy = document.createElement('button');
   btnCopy.textContent = 'Copy link';
   btnCopy.title = 'Copy shareable URL to clipboard';
@@ -455,6 +483,17 @@ function buildToolbar(): void {
     navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard'));
   });
   toolbar.appendChild(btnCopy);
+
+  const btnEmbed = document.createElement('button');
+  btnEmbed.textContent = 'Embed';
+  btnEmbed.className = 'btn-secondary';
+  btnEmbed.title = 'Copy embeddable HTML iframe snippet';
+  btnEmbed.addEventListener('click', () => {
+    const url = getEmbedURL(state);
+    const snippet = `<iframe src="${url}" width="800" height="600" frameborder="0" style="border:1px solid #dfe1e2;border-radius:4px;"></iframe>`;
+    navigator.clipboard.writeText(snippet).then(() => showToast('Embed code copied to clipboard'));
+  });
+  toolbar.appendChild(btnEmbed);
 
   addSeparator(toolbar);
 

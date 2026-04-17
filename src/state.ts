@@ -58,6 +58,20 @@ export function getShareableURL(state: ViewState): string {
   return window.location.origin + window.location.pathname + '#' + params.toString();
 }
 
+/** Build an embed URL (adds ?embed=1 query parameter) */
+export function getEmbedURL(state: ViewState): string {
+  const encoded = encodeState(state);
+  const params = new URLSearchParams();
+  params.set(STATE_PARAM, encoded);
+  const base = window.location.origin + window.location.pathname;
+  return base + '?embed=1#' + params.toString();
+}
+
+/** Check if the page was loaded in embed mode */
+export function isEmbedMode(): boolean {
+  return new URLSearchParams(window.location.search).get('embed') === '1';
+}
+
 /** Build a default ViewState */
 export function defaultViewState(): ViewState {
   return {
