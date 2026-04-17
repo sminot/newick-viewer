@@ -1,0 +1,37 @@
+{
+  "name": "tree-viewer",
+  "version": "1.0.0",
+  "description": "Interactive phylogenetic tree viewer for Newick format files",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:cirro": "tsc && vite build --config vite.cirro.config.ts",
+    "dev:cirro": "vite --config vite.cirro.config.ts",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:api": "vitest run --config vitest.api.config.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "@types/d3": "^7.4.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.5.0",
+    "vite": "^5.3.0",
+    "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "@cirrobio/react-tool": "^0.0.8",
+    "@cirrobio/sdk": "^0.12.30",
+    "d3": "^7.9.0",
+    "lz-string": "^1.5.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}
