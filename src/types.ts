@@ -75,6 +75,7 @@ export interface ViewState {
   metadata?: string;
   metadataIdCol?: string;
   metadataCatCol?: string;
+  darkMode?: boolean;
 }
 
 export const DEFAULT_TANGLEGRAM_STYLE: TanglegramStyle = {

@@ -27,6 +27,7 @@ export function decodeState(encoded: string): ViewState | null {
       metadata: parsed.metadata ?? undefined,
       metadataIdCol: parsed.metadataIdCol ?? undefined,
       metadataCatCol: parsed.metadataCatCol ?? undefined,
+      darkMode: parsed.darkMode ?? undefined,
     };
   } catch {
     return null;
@@ -81,5 +82,6 @@ export function defaultViewState(): ViewState {
     style: { ...DEFAULT_STYLE },
     tanglegram: false,
     tanglegramStyle: { ...DEFAULT_TANGLEGRAM_STYLE },
+    darkMode: false,
   };
 }

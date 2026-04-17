@@ -938,6 +938,202 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   }
 }
 
+/* Dark mode */
+body.dark-mode {
+  --border-color: #3a3a3a;
+  --bg-sidebar: #1a1a1a;
+  --bg-main: #0f0f0f;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --text-muted: #7a7a7a;
+  --primary: #4a9eff;
+  --primary-dark: #6cb0ff;
+  --primary-darker: #8ec1ff;
+  --primary-light: #1e2a3a;
+  --primary-lightest: #152030;
+  --heading-color: #d9a77c;
+  --section-border: #4a6278;
+  --link-color: #4a9eff;
+  --link-hover: #6cb0ff;
+}
+
+body.dark-mode #toolbar button {
+  background: #2a2a2a;
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+body.dark-mode #toolbar button:hover {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+body.dark-mode #toolbar button.active {
+  background: var(--primary);
+  color: #0f0f0f;
+  border-color: var(--primary);
+}
+
+body.dark-mode #toolbar button.btn-secondary {
+  background: transparent;
+  border-color: transparent;
+}
+
+body.dark-mode #toolbar button.btn-secondary:hover {
+  background: var(--primary-light);
+}
+
+body.dark-mode #sidebar textarea,
+body.dark-mode #sidebar input[type="text"],
+body.dark-mode #sidebar input[type="number"],
+body.dark-mode #sidebar select.sidebar-select,
+body.dark-mode .opentree-search-input {
+  background: #1f1f1f;
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+body.dark-mode #sidebar textarea::placeholder,
+body.dark-mode .opentree-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+body.dark-mode #sidebar button {
+  background: #2a2a2a;
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+body.dark-mode #sidebar button:hover {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+body.dark-mode #sidebar button.primary {
+  background: var(--primary);
+  color: #0f0f0f;
+  border-color: var(--primary);
+}
+
+body.dark-mode #sidebar input[type="color"] {
+  background: #1f1f1f;
+  border-color: var(--border-color);
+}
+
+body.dark-mode #sidebar .file-input-label {
+  color: var(--text-secondary);
+  border-color: #555;
+}
+
+body.dark-mode #sidebar .file-input-label:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+body.dark-mode .stepper {
+  border-color: var(--border-color);
+}
+
+body.dark-mode .stepper input[type="number"] {
+  border-color: var(--border-color);
+}
+
+body.dark-mode .stepper-btn {
+  background: #2a2a2a;
+  color: var(--text-primary);
+}
+
+body.dark-mode .stepper-btn:hover:not(:disabled) {
+  background: #3a3a3a;
+}
+
+body.dark-mode .opentree-dropdown {
+  background: #1f1f1f;
+  border-color: var(--border-color);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+
+body.dark-mode .opentree-dropdown-item:hover {
+  background: var(--primary-light);
+}
+
+body.dark-mode .opentree-tag {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+body.dark-mode #viewer {
+  background: #0f0f0f;
+}
+
+body.dark-mode .zoom-btn {
+  background: #2a2a2a;
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+body.dark-mode .zoom-btn:hover {
+  background: #3a3a3a;
+}
+
+body.dark-mode .tree-search-input {
+  background: rgba(30, 30, 30, 0.95);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .tree-stats {
+  background: rgba(30, 30, 30, 0.9);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .tree-context-menu {
+  background: #1f1f1f;
+  border-color: var(--border-color);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+body.dark-mode .tree-context-menu-item {
+  color: var(--text-primary);
+}
+
+body.dark-mode .tree-context-menu-item:hover {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+body.dark-mode .tip-tooltip {
+  background: #1f1f1f;
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .toast {
+  background: #2a2a2a;
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+body.dark-mode .error-message {
+  background: #2a1515;
+  border-color: #6a2a2a;
+  color: #ff8080;
+}
+
+body.dark-mode .embed-open-btn {
+  background: rgba(30, 30, 30, 0.7);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e0e0e0;
+}
+
+body.dark-mode .embed-open-btn:hover {
+  background: rgba(30, 30, 30, 0.95);
+}
+
 /* Embed mode */
 .embed-mode #app {
   height: 100vh;
