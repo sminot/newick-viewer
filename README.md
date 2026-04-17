@@ -89,13 +89,25 @@ Yes. The **Open Tree of Life** panel in the sidebar lets you search the [Open Tr
 
 Results are autocompleted as you type.
 
-### Can I use this inside the Cirro data platform?
-
-Yes. The viewer can be deployed as an embedded tool inside [Cirro](https://cirro.bio) using the `@cirrobio/react-tool` framework. When registered as a Cirro app, it auto-discovers `.nwk` files in a dataset and lets users view them without leaving the Cirro interface. See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions.
-
 ### How do I share a tree with someone?
 
 Click **Copy link** in the toolbar. The URL encodes the complete visualization state — tree data, layout mode, all display settings, and tanglegram configuration — compressed into the URL hash. Anyone who opens the link sees the exact same view. No server, no database, no account required.
+
+### Can I generate share URLs programmatically?
+
+Yes. The hash is a JSON state object compressed with [lz-string](https://github.com/pieroxy/lz-string) (`compressToEncodedURIComponent`). Every field except `newick1` is optional — missing keys fall back to defaults — so a minimal URL only needs the tree string. In Python:
+
+```python
+# pip install lzstring
+import json, lzstring
+
+state = {"newick1": "((A:0.1,B:0.1):0.3,C:0.4);"}
+encoded = lzstring.LZString().compressToEncodedURIComponent(json.dumps(state))
+url = f"https://sminot.github.io/newick-viewer/#s={encoded}"
+print(url)
+```
+
+Optional keys include `newick2`, `layout` (`"rectangular"` or `"radial"`), `tanglegram` (bool), and the `style` / `tanglegramStyle` objects. See `src/types.ts` for the full shape.
 
 ### What export formats are available?
 
