@@ -31,6 +31,16 @@ export interface RendererOptions {
   metadataTable?: MetadataTable | null;
   /** Which column in the metadata table holds tip IDs */
   metadataIdColumn?: string;
+  /** Whether dark mode is active */
+  darkMode?: boolean;
+}
+
+/** Default branch/label color; swapped for dark mode when user hasn't customized. */
+const DEFAULT_TREE_COLOR = '#1b1b1b';
+const DEFAULT_TREE_COLOR_DARK = '#e0e0e0';
+function themedColor(userValue: string, darkMode: boolean): string {
+  if (darkMode && userValue === DEFAULT_TREE_COLOR) return DEFAULT_TREE_COLOR_DARK;
+  return userValue;
 }
 
 export class TreeRenderer {
@@ -48,6 +58,7 @@ export class TreeRenderer {
   private metadataTable?: MetadataTable | null;
   private metadataIdColumn?: string;
   private tooltip: HTMLElement | null = null;
+  private darkMode: boolean = false;
   private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: RendererOptions) {
@@ -59,6 +70,7 @@ export class TreeRenderer {
     this.tipColorMap = options.tipColorMap;
     this.metadataTable = options.metadataTable;
     this.metadataIdColumn = options.metadataIdColumn;
+    this.darkMode = !!options.darkMode;
     this.init();
     this.render(options.layout);
   }
@@ -153,6 +165,7 @@ export class TreeRenderer {
 
     this.g.selectAll('rect.search-highlight').remove();
 
+    const highlightFill = this.darkMode ? '#5a4a00' : '#fff3cd';
     this.g.selectAll('text.leaf-label').each(function () {
       const el = d3.select(this);
       const text = (el.text() || '').toLowerCase();
@@ -172,7 +185,7 @@ export class TreeRenderer {
             .attr('width', bbox.width + 4)
             .attr('height', bbox.height + 2)
             .attr('rx', 2)
-            .attr('fill', '#fff3cd')
+            .attr('fill', highlightFill)
             .attr('opacity', 0.8);
         }
       }
@@ -185,6 +198,8 @@ export class TreeRenderer {
 
     // Draw edges
     const edgeGroup = this.g.append('g').attr('class', 'edges');
+
+    const branchColor = themedColor(this.style.branchColor, this.darkMode);
 
     if (this.layoutType === 'rectangular') {
       edgeGroup.selectAll('path.branch')
@@ -199,7 +214,7 @@ export class TreeRenderer {
           return `M${d.sourceX},${d.sourceY} L${d.targetX},${d.targetY}`;
         })
         .attr('fill', 'none')
-        .attr('stroke', this.style.branchColor)
+        .attr('stroke', branchColor)
         .attr('stroke-width', this.style.branchWidth);
     } else {
       edgeGroup.selectAll('line.branch')
@@ -211,7 +226,7 @@ export class TreeRenderer {
         .attr('y1', (d) => d.sourceY)
         .attr('x2', (d) => d.targetX)
         .attr('y2', (d) => d.targetY)
-        .attr('stroke', this.style.branchColor)
+        .attr('stroke', branchColor)
         .attr('stroke-width', this.style.branchWidth);
     }
 
@@ -222,9 +237,10 @@ export class TreeRenderer {
 
     // Tip color lookup: check both raw name and underscore-to-space variants
     const tcm = this.tipColorMap?.colorByTip;
+    const defaultLabelColor = themedColor(this.style.leafLabelColor, this.darkMode);
     const tipColor = (name: string): string => {
-      if (!tcm) return this.style.leafLabelColor;
-      return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? this.style.leafLabelColor;
+      if (!tcm) return defaultLabelColor;
+      return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? defaultLabelColor;
     };
 
     if (this.layoutType === 'rectangular') {
@@ -287,7 +303,7 @@ export class TreeRenderer {
         .attr('text-anchor', 'middle')
         .attr('font-size', this.style.internalLabelSize + 'px')
         .attr('font-family', this.style.fontFamily)
-        .attr('fill', '#666')
+        .attr('fill', this.darkMode ? '#aaa' : '#666')
         .text((d) => d.node.name);
     }
 
@@ -319,7 +335,7 @@ export class TreeRenderer {
         .attr('text-anchor', 'middle')
         .attr('font-size', (this.style.internalLabelSize - 1) + 'px')
         .attr('font-family', this.style.fontFamily)
-        .attr('fill', '#999')
+        .attr('fill', this.darkMode ? '#888' : '#999')
         .text((d) => d.node.branchLength?.toFixed(4) ?? '');
     }
 
@@ -360,7 +376,9 @@ export class TreeRenderer {
         .attr('stroke-width', 1)
         .attr('cursor', 'pointer')
         .on('mouseenter', function (event, d) {
-          d3.select(this).attr('fill', 'rgba(0,0,0,0.06)').attr('stroke', '#71767a');
+          const hoverFill = self.darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)';
+          const hoverStroke = self.darkMode ? '#888' : '#71767a';
+          d3.select(this).attr('fill', hoverFill).attr('stroke', hoverStroke);
           if (d.node.children.length === 0) self.showTooltip(event, d.node);
         })
         .on('mousemove', function (event, d) {
@@ -450,7 +468,7 @@ export class TreeRenderer {
         .attr('dy', '0.35em')
         .attr('font-size', fontSize + 'px')
         .attr('font-family', this.style.fontFamily)
-        .attr('fill', '#1b1b1b')
+        .attr('fill', this.darkMode ? '#e0e0e0' : '#1b1b1b')
         .text(item.category);
     });
 
@@ -465,8 +483,8 @@ export class TreeRenderer {
       .attr('width', contentBBox.width + bgPadX * 2)
       .attr('height', bgHeight)
       .attr('rx', 4)
-      .attr('fill', 'rgba(255,255,255,0.9)')
-      .attr('stroke', '#dfe1e2')
+      .attr('fill', this.darkMode ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)')
+      .attr('stroke', this.darkMode ? '#444' : '#dfe1e2')
       .attr('stroke-width', 1);
   }
 
@@ -584,26 +602,27 @@ export class TreeRenderer {
     const barX = minX;
 
     const scaleGroup = this.g.append('g').attr('class', 'scale-bar');
+    const scaleColor = themedColor(this.style.branchColor, this.darkMode);
 
     scaleGroup.append('line')
       .attr('x1', barX)
       .attr('y1', barY)
       .attr('x2', barX + scaleBarPx)
       .attr('y2', barY)
-      .attr('stroke', this.style.branchColor)
+      .attr('stroke', scaleColor)
       .attr('stroke-width', this.style.branchWidth);
 
     // Tick marks at ends
     scaleGroup.append('line')
       .attr('x1', barX).attr('y1', barY - 3)
       .attr('x2', barX).attr('y2', barY + 3)
-      .attr('stroke', this.style.branchColor)
+      .attr('stroke', scaleColor)
       .attr('stroke-width', this.style.branchWidth);
 
     scaleGroup.append('line')
       .attr('x1', barX + scaleBarPx).attr('y1', barY - 3)
       .attr('x2', barX + scaleBarPx).attr('y2', barY + 3)
-      .attr('stroke', this.style.branchColor)
+      .attr('stroke', scaleColor)
       .attr('stroke-width', this.style.branchWidth);
 
     scaleGroup.append('text')
@@ -612,7 +631,7 @@ export class TreeRenderer {
       .attr('text-anchor', 'middle')
       .attr('font-size', (this.style.internalLabelSize) + 'px')
       .attr('font-family', this.style.fontFamily)
-      .attr('fill', this.style.branchColor)
+      .attr('fill', scaleColor)
       .text(scaleBarValue < 0.001 ? scaleBarValue.toExponential(0) : String(scaleBarValue));
   }
 
