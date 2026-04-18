@@ -93,6 +93,80 @@ Results are autocompleted as you type.
 
 Click **Copy link** in the toolbar. The URL encodes the complete visualization state — tree data, layout mode, all display settings, and tanglegram configuration — compressed into the URL hash. Anyone who opens the link sees the exact same view. No server, no database, no account required.
 
+### Can I build shareable links programmatically?
+
+Yes. The URL hash carries a `s=` parameter containing the JSON view state, compressed with [lz-string](https://github.com/pieroxy/lz-string). Any language with an lz-string implementation can build links. Python example using [`lzstring`](https://pypi.org/project/lzstring/):
+
+```python
+import json
+import lzstring  # pip install lzstring
+
+BASE_URL = "https://sminot.github.io/newick-viewer/"
+
+def make_tree_link(newick1, **params):
+    state = {
+        "newick1": newick1,
+        "newick2": params.get("newick2", ""),
+        "layout": params.get("layout", "rectangular"),
+        "tanglegram": params.get("tanglegram", False),
+        "style": params.get("style", {}),
+        "tanglegramStyle": params.get("tanglegramStyle", {}),
+    }
+    for key in ("metadata", "metadataIdCol", "metadataCatCol"):
+        if key in params:
+            state[key] = params[key]
+    encoded = lzstring.LZString().compressToEncodedURIComponent(json.dumps(state))
+    return f"{BASE_URL}#s={encoded}"
+
+url = make_tree_link(
+    "((Human:0.1,Chimp:0.1):0.3,Gorilla:0.4);",
+    layout="radial",
+    style={"branchColor": "#1f77b4", "leafLabelSize": 14, "showBranchLengths": True},
+)
+```
+
+**Top-level parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `newick1` | str | `""` | Primary Newick or NEXUS tree string |
+| `newick2` | str | `""` | Second tree (used when `tanglegram=True`) |
+| `layout` | str | `"rectangular"` | `"rectangular"` or `"radial"` |
+| `tanglegram` | bool | `False` | Enable side-by-side comparison mode |
+| `style` | dict | see below | Display settings (see next table) |
+| `tanglegramStyle` | dict | see below | Tanglegram connection settings |
+| `metadata` | str | — | CSV/TSV text for tip coloring |
+| `metadataIdCol` | str | — | Column name matching tree tip labels |
+| `metadataCatCol` | str | — | Column name with the category to color by |
+
+**`style` dict keys:**
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `branchColor` | str | `"#1b1b1b"` | CSS color for branches |
+| `branchWidth` | number | `1.5` | Branch line width (px) |
+| `leafLabelSize` | number | `13` | Leaf label font size (px) |
+| `internalLabelSize` | number | `11` | Internal label font size (px) |
+| `legendLabelSize` | number | `11` | Legend label font size (px) |
+| `leafLabelColor` | str | `"#1b1b1b"` | CSS color for leaf labels |
+| `fontFamily` | str | system UI stack | Font family for all labels |
+| `showBranchLengths` | bool | `False` | Annotate branches with numeric lengths |
+| `showInternalLabels` | bool | `False` | Show bootstrap / internal labels |
+| `canvasWidth` | number | `0` | Width override in px (`0` = auto-fit) |
+| `canvasHeight` | number | `0` | Height override in px (`0` = auto-fit) |
+
+**`tanglegramStyle` dict keys:**
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `spacing` | number | `0.24` | Gap between trees, as fraction of width (0–1) |
+| `connectionColor` | str | `"#71767a"` | Line color when `connectionColorMode="single"` |
+| `connectionColorMode` | str | `"single"` | `"single"` or `"multi"` |
+| `connectionWidth` | number | `1` | Line thickness (px) |
+| `connectionLineStyle` | str | `"solid"` | `"solid"`, `"dashed"`, or `"dotted"` |
+
+Missing fields fall back to defaults; unknown fields are ignored.
+
 ### What export formats are available?
 
 - **SVG**: Vector graphics file, editable in Illustrator or Inkscape
