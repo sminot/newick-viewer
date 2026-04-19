@@ -179,6 +179,14 @@ Pull requests are also welcome. See [DEVELOPMENT.md](DEVELOPMENT.md) for setup i
 
 ---
 
+## Citing this tool
+
+If you use Tree Viewer to generate a figure for a publication, you can adapt the following text for your methods section:
+
+> Phylogenetic trees were visualized using Tree Viewer (https://sminot.github.io/newick-viewer/), a free, browser-based tool for rendering Newick and NEXUS format trees.
+
+---
+
 ## Development
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, testing, deployment, and Cirro integration details.
