@@ -1198,6 +1198,12 @@ function buildControlsPanel(): void {
   controlsSep.className = 'controls-separator';
   panel.appendChild(controlsSep);
 
+  // Show tip labels
+  addCheckbox(panel, 'Show tip labels', state.style.showLeafLabels, (v) => {
+    state.style.showLeafLabels = v;
+    renderTree();
+  });
+
   // Show branch lengths
   addCheckbox(panel, 'Show branch lengths', state.style.showBranchLengths, (v) => {
     state.style.showBranchLengths = v;
@@ -1258,6 +1264,20 @@ function buildControlsPanel(): void {
         renderTree();
       }
     );
+
+    // Tip label visibility per tree
+    const labelSep = document.createElement('div');
+    labelSep.className = 'controls-separator';
+    panel.appendChild(labelSep);
+
+    addCheckbox(panel, 'Show labels (left tree)', state.tanglegramStyle.showLeafLabels1, (v) => {
+      state.tanglegramStyle.showLeafLabels1 = v;
+      renderTree();
+    });
+    addCheckbox(panel, 'Show labels (right tree)', state.tanglegramStyle.showLeafLabels2, (v) => {
+      state.tanglegramStyle.showLeafLabels2 = v;
+      renderTree();
+    });
   }
 }
 

@@ -37,6 +37,8 @@ describe('state encoding/decoding', () => {
         connectionColorMode: 'multi',
         connectionWidth: 2,
         connectionLineStyle: 'dashed',
+        showLeafLabels1: true,
+        showLeafLabels2: true,
       },
     };
     const encoded = encodeState(state);

@@ -110,10 +110,10 @@ export class TanglegramRenderer {
     }
 
     // Draw left tree, capture label end positions
-    const leftLabelEnds = this.drawTree(layout1, style, 'left', 1);
+    const leftLabelEnds = this.drawTree(layout1, style, 'left', 1, tanglegramStyle.showLeafLabels1);
 
     // Draw right tree, capture label end positions
-    const rightLabelEnds = this.drawTree(layout2, style, 'right', 2);
+    const rightLabelEnds = this.drawTree(layout2, style, 'right', 2, tanglegramStyle.showLeafLabels2);
 
     // Scale bars (rectangular layout has branch lengths)
     this.renderScaleBar(layout1, 'left', style);
@@ -184,7 +184,8 @@ export class TanglegramRenderer {
     layout: LayoutResult,
     style: StyleOptions,
     side: 'left' | 'right',
-    treeIndex: 1 | 2
+    treeIndex: 1 | 2,
+    showLabels: boolean
   ): Map<string, { x: number; y: number }> {
     const group = this.g.append('g').attr('class', `tree-${side}`);
 
@@ -228,25 +229,27 @@ export class TanglegramRenderer {
     // Leaf labels
     const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
 
-    const labelSelection = group.selectAll('text.leaf-label')
-      .data(leafNodes)
-      .enter()
-      .append('text')
-      .attr('class', 'leaf-label')
-      .attr('x', (d) => d.x + (side === 'left' ? 6 : -6))
-      .attr('y', (d) => d.y)
-      .attr('dy', '0.35em')
-      .attr('text-anchor', side === 'left' ? 'start' : 'end')
-      .attr('font-size', style.leafLabelSize + 'px')
-      .attr('font-family', style.fontFamily)
-      .attr('fill', (d) => tipColor(d.node.name))
-      .attr('font-style', 'italic')
-      .text((d) => displayName(d.node.name));
+    if (showLabels) {
+      const labelSelection = group.selectAll('text.leaf-label')
+        .data(leafNodes)
+        .enter()
+        .append('text')
+        .attr('class', 'leaf-label')
+        .attr('x', (d) => d.x + (side === 'left' ? 6 : -6))
+        .attr('y', (d) => d.y)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', side === 'left' ? 'start' : 'end')
+        .attr('font-size', style.leafLabelSize + 'px')
+        .attr('font-family', style.fontFamily)
+        .attr('fill', (d) => tipColor(d.node.name))
+        .attr('font-style', 'italic')
+        .text((d) => displayName(d.node.name));
 
-    labelSelection
-      .on('mouseenter', (event: MouseEvent, d) => this.showTooltip(event, d.node))
-      .on('mousemove', (event: MouseEvent) => this.moveTooltip(event))
-      .on('mouseleave', () => this.hideTooltip());
+      labelSelection
+        .on('mouseenter', (event: MouseEvent, d) => this.showTooltip(event, d.node))
+        .on('mousemove', (event: MouseEvent) => this.moveTooltip(event))
+        .on('mouseleave', () => this.hideTooltip());
+    }
 
     // Leaf dots
     group.selectAll('circle.leaf-node')
@@ -322,15 +325,23 @@ export class TanglegramRenderer {
         self.showContextMenu(event.clientX, event.clientY, d.node, root, treeIndex);
       });
 
-    // Measure label bounding boxes to find the end of each label
+    // Measure label end positions for connection lines
     const labelEnds = new Map<string, { x: number; y: number }>();
-    labelSelection.each(function (d) {
-      const bbox = (this as SVGTextElement).getBBox();
-      const endX = side === 'left'
-        ? bbox.x + bbox.width + 3  // right edge + small pad
-        : bbox.x - 3;              // left edge - small pad
-      labelEnds.set(d.node.name, { x: endX, y: d.y });
-    });
+    if (showLabels) {
+      group.selectAll<SVGTextElement, typeof leafNodes[0]>('text.leaf-label').each(function (d) {
+        const bbox = (this as SVGTextElement).getBBox();
+        const endX = side === 'left'
+          ? bbox.x + bbox.width + 3  // right edge + small pad
+          : bbox.x - 3;              // left edge - small pad
+        labelEnds.set(d.node.name, { x: endX, y: d.y });
+      });
+    } else {
+      // No labels: connections attach at the tip node dot
+      for (const n of leafNodes) {
+        const endX = side === 'left' ? n.x + 3 : n.x - 3;
+        labelEnds.set(n.node.name, { x: endX, y: n.y });
+      }
+    }
 
     return labelEnds;
   }

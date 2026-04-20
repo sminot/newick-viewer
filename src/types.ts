@@ -51,6 +51,8 @@ export interface TanglegramStyle {
   connectionColorMode: ConnectionColorMode;
   connectionWidth: number;
   connectionLineStyle: ConnectionLineStyle;
+  showLeafLabels1: boolean;   // show tip labels on left tree
+  showLeafLabels2: boolean;   // show tip labels on right tree
 }
 
 export interface StyleOptions {
@@ -62,6 +64,7 @@ export interface StyleOptions {
   legendTitle: string;
   showBranchLengths: boolean;
   showInternalLabels: boolean;
+  showLeafLabels: boolean;
   leafLabelColor: string;
   fontFamily: string;
   /** Canvas width override (0 = auto from viewer size) */
@@ -90,6 +93,8 @@ export const DEFAULT_TANGLEGRAM_STYLE: TanglegramStyle = {
   connectionColorMode: 'single',
   connectionWidth: 1,
   connectionLineStyle: 'solid',
+  showLeafLabels1: true,
+  showLeafLabels2: true,
 };
 
 export const DEFAULT_STYLE: StyleOptions = {
@@ -101,6 +106,7 @@ export const DEFAULT_STYLE: StyleOptions = {
   legendTitle: '',
   showBranchLengths: false,
   showInternalLabels: false,
+  showLeafLabels: true,
   leafLabelColor: '#1b1b1b',
   fontFamily: "'Source Sans Pro', 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
   canvasWidth: 0,

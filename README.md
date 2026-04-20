@@ -152,6 +152,7 @@ url = make_tree_link(
 | `legendTitle` | str | `""` | Title displayed above the legend (empty = no title) |
 | `leafLabelColor` | str | `"#1b1b1b"` | CSS color for leaf labels |
 | `fontFamily` | str | system UI stack | Font family for all labels |
+| `showLeafLabels` | bool | `True` | Show tip labels |
 | `showBranchLengths` | bool | `False` | Annotate branches with numeric lengths |
 | `showInternalLabels` | bool | `False` | Show bootstrap / internal labels |
 | `canvasWidth` | number | `0` | Width override in px (`0` = auto-fit) |
@@ -166,6 +167,8 @@ url = make_tree_link(
 | `connectionColorMode` | str | `"single"` | `"single"` or `"multi"` |
 | `connectionWidth` | number | `1` | Line thickness (px) |
 | `connectionLineStyle` | str | `"solid"` | `"solid"`, `"dashed"`, or `"dotted"` |
+| `showLeafLabels1` | bool | `True` | Show tip labels on the left tree |
+| `showLeafLabels2` | bool | `True` | Show tip labels on the right tree |
 
 Missing fields fall back to defaults; unknown fields are ignored.
 ### Can I generate share URLs programmatically?

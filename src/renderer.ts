@@ -273,58 +273,60 @@ export class TreeRenderer {
       return dnm.get(name) ?? dnm.get(name.replace(/_/g, ' ')) ?? dnm.get(name.replace(/ /g, '_')) ?? formatLeafName(name);
     };
 
-    if (this.layoutType === 'rectangular') {
-      const leafLabelSel = nodeGroup.selectAll('text.leaf-label')
-        .data(leafNodes)
-        .enter()
-        .append('text')
-        .attr('class', 'leaf-label')
-        .attr('x', (d) => sx(d) + 6)
-        .attr('y', (d) => sy(d))
-        .attr('dy', '0.35em')
-        .attr('text-anchor', 'start')
-        .attr('font-size', this.style.leafLabelSize + 'px')
-        .attr('font-family', this.style.fontFamily)
-        .attr('fill', (d) => tipColor(d.node.name))
-        .attr('font-style', 'italic')
-        .text((d) => displayName(d.node.name));
+    if (this.style.showLeafLabels) {
+      if (this.layoutType === 'rectangular') {
+        const leafLabelSel = nodeGroup.selectAll('text.leaf-label')
+          .data(leafNodes)
+          .enter()
+          .append('text')
+          .attr('class', 'leaf-label')
+          .attr('x', (d) => sx(d) + 6)
+          .attr('y', (d) => sy(d))
+          .attr('dy', '0.35em')
+          .attr('text-anchor', 'start')
+          .attr('font-size', this.style.leafLabelSize + 'px')
+          .attr('font-family', this.style.fontFamily)
+          .attr('fill', (d) => tipColor(d.node.name))
+          .attr('font-style', 'italic')
+          .text((d) => displayName(d.node.name));
 
-      if (animate) {
-        leafLabelSel.transition().duration(DURATION)
-          .attr('x', (d) => d.x + 6)
-          .attr('y', (d) => d.y);
+        if (animate) {
+          leafLabelSel.transition().duration(DURATION)
+            .attr('x', (d) => d.x + 6)
+            .attr('y', (d) => d.y);
+        }
+      } else {
+        const cx = layout.width / 2;
+        const cy = layout.height / 2;
+        nodeGroup.selectAll('text.leaf-label')
+          .data(leafNodes)
+          .enter()
+          .append('text')
+          .attr('class', 'leaf-label')
+          .attr('x', (d) => d.x)
+          .attr('y', (d) => d.y)
+          .attr('dy', '0.35em')
+          .attr('text-anchor', (d) => {
+            const angle = Math.atan2(d.y - cy, d.x - cx);
+            return Math.abs(angle) > Math.PI / 2 ? 'end' : 'start';
+          })
+          .attr('transform', (d) => {
+            const angle = Math.atan2(d.y - cy, d.x - cx);
+            let deg = (angle * 180) / Math.PI;
+            const flip = Math.abs(deg) > 90;
+            if (flip) deg += 180;
+            return `rotate(${deg},${d.x},${d.y})`;
+          })
+          .attr('dx', (d) => {
+            const angle = Math.atan2(d.y - cy, d.x - cx);
+            return Math.abs(angle) > Math.PI / 2 ? '-6' : '6';
+          })
+          .attr('font-size', this.style.leafLabelSize + 'px')
+          .attr('font-family', this.style.fontFamily)
+          .attr('fill', (d) => tipColor(d.node.name))
+          .attr('font-style', 'italic')
+          .text((d) => displayName(d.node.name));
       }
-    } else {
-      const cx = layout.width / 2;
-      const cy = layout.height / 2;
-      nodeGroup.selectAll('text.leaf-label')
-        .data(leafNodes)
-        .enter()
-        .append('text')
-        .attr('class', 'leaf-label')
-        .attr('x', (d) => d.x)
-        .attr('y', (d) => d.y)
-        .attr('dy', '0.35em')
-        .attr('text-anchor', (d) => {
-          const angle = Math.atan2(d.y - cy, d.x - cx);
-          return Math.abs(angle) > Math.PI / 2 ? 'end' : 'start';
-        })
-        .attr('transform', (d) => {
-          const angle = Math.atan2(d.y - cy, d.x - cx);
-          let deg = (angle * 180) / Math.PI;
-          const flip = Math.abs(deg) > 90;
-          if (flip) deg += 180;
-          return `rotate(${deg},${d.x},${d.y})`;
-        })
-        .attr('dx', (d) => {
-          const angle = Math.atan2(d.y - cy, d.x - cx);
-          return Math.abs(angle) > Math.PI / 2 ? '-6' : '6';
-        })
-        .attr('font-size', this.style.leafLabelSize + 'px')
-        .attr('font-family', this.style.fontFamily)
-        .attr('fill', (d) => tipColor(d.node.name))
-        .attr('font-style', 'italic')
-        .text((d) => displayName(d.node.name));
     }
 
     // Internal node labels
