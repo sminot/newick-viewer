@@ -602,6 +602,14 @@ export class TanglegramRenderer {
     });
   }
 
+  getTransform(): d3.ZoomTransform {
+    return d3.zoomTransform(this.svg.node()!);
+  }
+
+  setTransform(t: d3.ZoomTransform): void {
+    this.svg.call(this.zoom.transform, t);
+  }
+
   fitToView(): void {
     const containerRect = this.container.getBoundingClientRect();
     const cw = containerRect.width;

@@ -102,6 +102,7 @@ const MAX_HISTORY = 50;
 // Track whether the first render has happened (for mobile auto-collapse)
 let hasRenderedOnce = false;
 let lastRenderedNewick = ''; // Track tree content to detect structural changes
+let lastRenderedNewick2 = ''; // Track newick2 for tanglegram change detection
 let lastRenderedLayout: string = ''; // Track layout type for zoom preservation
 
 /** Push the current newick1 onto the undo stack (call before making a change) */
@@ -314,6 +315,8 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
       const maxLeaves = Math.max(leafCount, leaves2);
       const tangleHeight = Math.max(autoH, maxLeaves * (state.style.leafLabelSize + 8));
 
+      const prevTangleTransform = currentTanglegram ? currentTanglegram.getTransform() : null;
+      const tangleTreeChanged = state.newick1 !== lastRenderedNewick || (state.newick2 ?? '') !== lastRenderedNewick2;
       if (currentTanglegram) currentTanglegram.destroy();
       currentTanglegram = new TanglegramRenderer({
         container: viewer,
@@ -339,6 +342,9 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
           currentTanglegram!.render();
         },
       });
+      if (prevTangleTransform && hasRenderedOnce && !tangleTreeChanged) {
+        currentTanglegram.setTransform(prevTangleTransform);
+      }
     } else {
       // Single tree mode
       if (currentTanglegram) { currentTanglegram.destroy(); currentTanglegram = null; }
@@ -383,6 +389,7 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
     }
 
     lastRenderedNewick = state.newick1;
+    lastRenderedNewick2 = state.newick2 ?? '';
     lastRenderedLayout = state.layout;
 
     // Show tree stats
