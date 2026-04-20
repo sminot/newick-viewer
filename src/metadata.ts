@@ -10,6 +10,8 @@ export interface MetadataTable {
 export interface TipColorMap {
   colorByTip: Map<string, string>;  // tip name → hex color
   legend: { category: string; color: string }[];
+  /** Display name override: tip ID → label to show in the tree */
+  displayNameByTip?: Map<string, string>;
 }
 
 // 10-color categorical palette (Tableau10, accessible and distinguishable)
@@ -20,7 +22,13 @@ const CATEGORY_COLORS = [
 
 /** Parse a CSV string into a table. Handles quoted fields and common delimiters. */
 export function parseCSV(text: string): MetadataTable {
-  const lines = text.trim().split(/\r?\n/);
+  // Strip BOM; trim only trailing whitespace (trimming the start would destroy
+  // a leading-tab signal used by R/Excel row-name exports).
+  const cleaned = text.replace(/^\uFEFF/, '').trimEnd();
+  const allLines = cleaned.split(/\r\n|\r|\n/);
+  // Skip any leading blank lines so the first non-empty line is the header.
+  const firstNonEmpty = allLines.findIndex((l) => l.trim() !== '');
+  const lines = firstNonEmpty > 0 ? allLines.slice(firstNonEmpty) : allLines;
   if (lines.length < 2) {
     throw new Error('CSV must have a header row and at least one data row');
   }
@@ -28,13 +36,31 @@ export function parseCSV(text: string): MetadataTable {
   // Detect delimiter: try tab first, then comma
   const delimiter = lines[0].includes('\t') ? '\t' : ',';
 
-  const headers = parseLine(lines[0], delimiter);
+  const rawHeaders = parseLine(lines[0], delimiter);
+
+  // Strip a leading empty column — common in R/Excel exports that include row
+  // names (the row-name column has no header, producing a leading empty field).
+  const hasLeadingEmpty = rawHeaders[0] === '';
+  const headers = hasLeadingEmpty ? rawHeaders.slice(1) : rawHeaders;
+
   const rows: Record<string, string>[] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    const values = parseLine(line, delimiter);
+    let values = parseLine(line, delimiter);
+
+    // Align data rows with (possibly trimmed) headers:
+    // If the header had a leading empty field, drop the first data field too.
+    // If the header had no leading empty but data has one extra field at the
+    // start that is empty or a plain integer (row index), drop it as well.
+    if (hasLeadingEmpty) {
+      if (values.length > headers.length) values = values.slice(1);
+    } else if (values.length === headers.length + 1) {
+      const first = values[0];
+      if (first === '' || /^\d+$/.test(first)) values = values.slice(1);
+    }
+
     const row: Record<string, string> = {};
     for (let j = 0; j < headers.length; j++) {
       row[headers[j]] = values[j] ?? '';
@@ -75,11 +101,12 @@ function parseLine(line: string, delimiter: string): string[] {
   return fields;
 }
 
-/** Build a color map from a metadata table, given the ID and category columns. */
+/** Build a color map from a metadata table, given the ID, category, and optional display name columns. */
 export function buildTipColorMap(
   table: MetadataTable,
   idColumn: string,
-  categoryColumn: string
+  categoryColumn: string,
+  nameColumn?: string
 ): TipColorMap {
   const categories = new Set<string>();
   for (const row of table.rows) {
@@ -110,5 +137,18 @@ export function buildTipColorMap(
     color: categoryColorMap.get(cat)!,
   }));
 
-  return { colorByTip, legend };
+  // Build display name map if a name column is specified
+  let displayNameByTip: Map<string, string> | undefined;
+  if (nameColumn && nameColumn !== idColumn) {
+    displayNameByTip = new Map<string, string>();
+    for (const row of table.rows) {
+      const tipId = row[idColumn];
+      const displayName = row[nameColumn];
+      if (tipId && displayName) {
+        displayNameByTip.set(tipId, displayName);
+      }
+    }
+  }
+
+  return { colorByTip, legend, displayNameByTip };
 }

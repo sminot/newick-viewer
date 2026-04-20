@@ -74,6 +74,7 @@ let currentTanglegram: TanglegramRenderer | null = null;
 let metadataTable: MetadataTable | null = null;
 let currentTipColorMap: TipColorMap | null = null;
 let metadataIdColumn: string = '';
+let metadataNameColumn: string = '';
 let metadataCategoryColumn: string = '';
 
 /** Sync metadata fields into the persisted ViewState */
@@ -83,10 +84,12 @@ function syncMetadataToState(): void {
     const rows = metadataTable.rows.map(r => metadataTable!.headers.map(h => r[h] ?? '').join(','));
     state.metadata = [metadataTable.headers.join(','), ...rows].join('\n');
     state.metadataIdCol = metadataIdColumn;
+    state.metadataNameCol = metadataNameColumn || undefined;
     state.metadataCatCol = metadataCategoryColumn;
   } else {
     state.metadata = undefined;
     state.metadataIdCol = undefined;
+    state.metadataNameCol = undefined;
     state.metadataCatCol = undefined;
   }
 }
@@ -177,9 +180,10 @@ function init(): void {
     try {
       metadataTable = parseCSV(state.metadata);
       metadataIdColumn = state.metadataIdCol ?? metadataTable.headers[0] ?? '';
+      metadataNameColumn = state.metadataNameCol ?? '';
       metadataCategoryColumn = state.metadataCatCol ?? metadataTable.headers[1] ?? '';
       if (metadataTable.headers.length >= 2) {
-        currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
+        currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn, metadataNameColumn || undefined);
       }
     } catch { /* ignore corrupt metadata in URL */ }
   }
@@ -318,6 +322,8 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
         style: state.style,
         tanglegramStyle: state.tanglegramStyle,
         tipColorMap: currentTipColorMap,
+        metadataTable: metadataTable,
+        metadataIdColumn: metadataIdColumn,
         darkMode: state.darkMode,
         onNodeEdit: (newRoot, _action, treeIndex) => {
           pushUndo();
@@ -780,6 +786,7 @@ function buildOpenTreePanel(): void {
       metadataTable = null;
       currentTipColorMap = null;
       metadataIdColumn = '';
+      metadataNameColumn = '';
       metadataCategoryColumn = '';
       syncMetadataToState();
       buildMetadataPanel();
@@ -929,6 +936,7 @@ function buildInputPanel(): void {
       try {
         metadataTable = parseCSV(ex.metadata);
         metadataIdColumn = metadataTable.headers[0];
+        metadataNameColumn = '';
         metadataCategoryColumn = metadataTable.headers[1];
         currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
         buildMetadataPanel();
@@ -984,6 +992,7 @@ function buildMetadataPanel(): void {
           // Auto-select first column as ID, second as category
           if (metadataTable.headers.length >= 2) {
             metadataIdColumn = metadataTable.headers[0];
+            metadataNameColumn = '';
             metadataCategoryColumn = metadataTable.headers[1];
             currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn);
           }
@@ -1016,6 +1025,27 @@ function buildMetadataPanel(): void {
     idRow.append(idSpan, idSelect);
     panel.appendChild(idRow);
 
+    const nameRow = document.createElement('label');
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = 'Display name column';
+    const nameSelect = document.createElement('select');
+    nameSelect.className = 'sidebar-select';
+    nameSelect.style.flex = '1';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '(none)';
+    if (!metadataNameColumn) noneOpt.selected = true;
+    nameSelect.appendChild(noneOpt);
+    for (const h of metadataTable.headers) {
+      const opt = document.createElement('option');
+      opt.value = h;
+      opt.textContent = h;
+      if (h === metadataNameColumn) opt.selected = true;
+      nameSelect.appendChild(opt);
+    }
+    nameRow.append(nameSpan, nameSelect);
+    panel.appendChild(nameRow);
+
     const catRow = document.createElement('label');
     const catSpan = document.createElement('span');
     catSpan.textContent = 'Category column';
@@ -1032,27 +1062,47 @@ function buildMetadataPanel(): void {
     catRow.append(catSpan, catSelect);
     panel.appendChild(catRow);
 
+    // Count how many of the current tree's leaves are matched by the color map
+    function countMatchedLeaves(tcm: TipColorMap | null): { matched: number; total: number } {
+      const map = tcm?.colorByTip;
+      if (!map || !state.newick1) return { matched: 0, total: 0 };
+      try {
+        const leaves = getLeafNames(parseTreeInput(state.newick1));
+        const matched = leaves.filter(
+          (n) => map.has(n) || map.has(n.replace(/_/g, ' ')) || map.has(n.replace(/ /g, '_'))
+        ).length;
+        return { matched, total: leaves.length };
+      } catch { return { matched: 0, total: 0 }; }
+    }
+
+    function formatStats(tcm: TipColorMap | null): string {
+      const nCat = tcm?.legend.length ?? 0;
+      const { matched, total } = countMatchedLeaves(tcm);
+      const inTable = tcm?.colorByTip.size ?? 0;
+      if (total > 0) {
+        return `${matched} of ${total} tree tips matched · ${inTable} in table · ${nCat} categories`;
+      }
+      return `${inTable} in table · ${nCat} categories`;
+    }
+
     // Update on column change
     const updateColors = () => {
       metadataIdColumn = idSelect.value;
+      metadataNameColumn = nameSelect.value;
       metadataCategoryColumn = catSelect.value;
-      currentTipColorMap = buildTipColorMap(metadataTable!, metadataIdColumn, metadataCategoryColumn);
-      // Update stats
-      const nCat = currentTipColorMap.legend.length;
-      const nMap = currentTipColorMap.colorByTip.size;
-      stats.textContent = `${nMap} tips mapped, ${nCat} categories`;
+      currentTipColorMap = buildTipColorMap(metadataTable!, metadataIdColumn, metadataCategoryColumn, metadataNameColumn || undefined);
+      stats.textContent = formatStats(currentTipColorMap);
       syncMetadataToState();
       renderTree();
     };
     idSelect.addEventListener('change', updateColors);
+    nameSelect.addEventListener('change', updateColors);
     catSelect.addEventListener('change', updateColors);
 
     // Stats
     const stats = document.createElement('div');
     stats.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:6px;';
-    const nCategories = currentTipColorMap?.legend.length ?? 0;
-    const nMapped = currentTipColorMap?.colorByTip.size ?? 0;
-    stats.textContent = `${nMapped} tips mapped, ${nCategories} categories`;
+    stats.textContent = formatStats(currentTipColorMap);
     panel.appendChild(stats);
 
     // Clear button
@@ -1063,6 +1113,7 @@ function buildMetadataPanel(): void {
       metadataTable = null;
       currentTipColorMap = null;
       metadataIdColumn = '';
+      metadataNameColumn = '';
       metadataCategoryColumn = '';
       syncMetadataToState();
       buildMetadataPanel();

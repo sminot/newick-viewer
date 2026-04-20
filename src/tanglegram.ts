@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import { TreeNode, LayoutResult, LayoutEdge, StyleOptions, TanglegramStyle, TreeEditAction } from './types';
 import { computeLayout } from './layout';
 import { pruneNode, extractSubtree, rerootAt, ladderize } from './newick-parser';
-import type { TipColorMap } from './metadata';
+import type { TipColorMap, MetadataTable } from './metadata';
 
 export interface TanglegramOptions {
   container: HTMLElement;
@@ -12,7 +12,15 @@ export interface TanglegramOptions {
   tanglegramStyle: TanglegramStyle;
   onNodeEdit?: (newRoot: TreeNode, action: TreeEditAction, treeIndex: 1 | 2) => void;
   tipColorMap?: TipColorMap | null;
+  /** Full metadata table for tooltips */
+  metadataTable?: MetadataTable | null;
+  /** Which column in the metadata table holds tip IDs */
+  metadataIdColumn?: string;
   darkMode?: boolean;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 const DEFAULT_TREE_COLOR = '#1b1b1b';
@@ -32,6 +40,7 @@ export class TanglegramRenderer {
   private zoom!: d3.ZoomBehavior<SVGSVGElement, unknown>;
   private container: HTMLElement;
   private contextMenu: HTMLElement | null = null;
+  private tooltip: HTMLElement | null = null;
   private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: TanglegramOptions) {
@@ -70,8 +79,10 @@ export class TanglegramRenderer {
 
     const { tree1, tree2, style, tanglegramStyle } = this.options;
     const containerRect = this.container.getBoundingClientRect();
-    const totalWidth = containerRect.width || 1200;
-    const totalHeight = containerRect.height || 800;
+    const autoWidth = containerRect.width || 1200;
+    const autoHeight = containerRect.height || 800;
+    const totalWidth = style.canvasWidth > 0 ? style.canvasWidth : autoWidth;
+    const totalHeight = style.canvasHeight > 0 ? style.canvasHeight : autoHeight;
 
     // Use spacing setting to control gap between trees
     const gapFraction = Math.max(0.05, Math.min(0.6, tanglegramStyle.spacing));
@@ -103,6 +114,10 @@ export class TanglegramRenderer {
 
     // Draw right tree, capture label end positions
     const rightLabelEnds = this.drawTree(layout2, style, 'right', 2);
+
+    // Scale bars (rectangular layout has branch lengths)
+    this.renderScaleBar(layout1, 'left', style);
+    this.renderScaleBar(layout2, 'right', style);
 
     // Draw connecting lines between matching leaves
     this.drawConnections(leftLabelEnds, rightLabelEnds, tanglegramStyle);
@@ -180,9 +195,14 @@ export class TanglegramRenderer {
 
     // Tip color lookup
     const tcm = this.options.tipColorMap?.colorByTip;
+    const dnm = this.options.tipColorMap?.displayNameByTip;
     const tipColor = (name: string): string => {
       if (!tcm) return defaultLabelColor;
       return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? defaultLabelColor;
+    };
+    const displayName = (name: string): string => {
+      if (!dnm) return name.replace(/_/g, ' ');
+      return dnm.get(name) ?? dnm.get(name.replace(/_/g, ' ')) ?? dnm.get(name.replace(/ /g, '_')) ?? name.replace(/_/g, ' ');
     };
     const hasTipColors = tcm && tcm.size > 0;
 
@@ -221,7 +241,12 @@ export class TanglegramRenderer {
       .attr('font-family', style.fontFamily)
       .attr('fill', (d) => tipColor(d.node.name))
       .attr('font-style', 'italic')
-      .text((d) => d.node.name.replace(/_/g, ' '));
+      .text((d) => displayName(d.node.name));
+
+    labelSelection
+      .on('mouseenter', (event: MouseEvent, d) => this.showTooltip(event, d.node))
+      .on('mousemove', (event: MouseEvent) => this.moveTooltip(event))
+      .on('mouseleave', () => this.hideTooltip());
 
     // Leaf dots
     group.selectAll('circle.leaf-node')
@@ -398,6 +423,144 @@ export class TanglegramRenderer {
     onNodeEdit(newRoot, action, treeIndex);
   }
 
+  private renderScaleBar(layout: LayoutResult, side: 'left' | 'right', style: StyleOptions): void {
+    const hasBranchLengths = layout.nodes.some((n) => n.node.branchLength !== null);
+    if (!hasBranchLengths) return;
+
+    const rootNode = layout.nodes.find((n) => n.parentX === null);
+    if (!rootNode) return;
+
+    const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
+
+    // Left tree: root at min-x, leaves at max-x. Right tree (mirrored): root at max-x, leaves at min-x.
+    let plotWidth: number;
+    let barStartX: number;
+    let barEndX: number;
+    if (side === 'left') {
+      const maxLeafX = leafNodes.reduce((max, n) => Math.max(max, n.x), 0);
+      plotWidth = maxLeafX - rootNode.x;
+      const totalBranchLen = this.getMaxBranchLengthFromTree(rootNode.node);
+      if (plotWidth <= 0 || totalBranchLen <= 0) return;
+      const scaleBarPx = this.niceRound(80 / (plotWidth / totalBranchLen)) * (plotWidth / totalBranchLen);
+      barStartX = rootNode.x;
+      barEndX = rootNode.x + scaleBarPx;
+    } else {
+      const minLeafX = leafNodes.reduce((min, n) => Math.min(min, n.x), Infinity);
+      plotWidth = rootNode.x - minLeafX;
+      const totalBranchLen = this.getMaxBranchLengthFromTree(rootNode.node);
+      if (plotWidth <= 0 || totalBranchLen <= 0) return;
+      const scaleBarPx = this.niceRound(80 / (plotWidth / totalBranchLen)) * (plotWidth / totalBranchLen);
+      barStartX = rootNode.x - scaleBarPx;
+      barEndX = rootNode.x;
+    }
+
+    const totalBranchLen = this.getMaxBranchLengthFromTree(rootNode.node);
+    if (totalBranchLen <= 0) return;
+    const pixelsPerUnit = plotWidth / totalBranchLen;
+    const scaleBarValue = this.niceRound(80 / pixelsPerUnit);
+
+    const maxLeafY = leafNodes.reduce((max, n) => Math.max(max, n.y), 0);
+    const barY = maxLeafY + style.leafLabelSize / 2 + 20;
+    const darkMode = !!this.options.darkMode;
+    const scaleColor = themedColor(style.branchColor, darkMode);
+
+    const scaleGroup = this.g.append('g').attr('class', `scale-bar-${side}`);
+
+    scaleGroup.append('line')
+      .attr('x1', barStartX).attr('y1', barY)
+      .attr('x2', barEndX).attr('y2', barY)
+      .attr('stroke', scaleColor).attr('stroke-width', style.branchWidth);
+
+    [barStartX, barEndX].forEach((x) => {
+      scaleGroup.append('line')
+        .attr('x1', x).attr('y1', barY - 3)
+        .attr('x2', x).attr('y2', barY + 3)
+        .attr('stroke', scaleColor).attr('stroke-width', style.branchWidth);
+    });
+
+    scaleGroup.append('text')
+      .attr('x', (barStartX + barEndX) / 2)
+      .attr('y', barY - 6)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', style.internalLabelSize + 'px')
+      .attr('font-family', style.fontFamily)
+      .attr('fill', scaleColor)
+      .text(scaleBarValue < 0.001 ? scaleBarValue.toExponential(0) : String(scaleBarValue));
+  }
+
+  private getMaxBranchLengthFromTree(node: TreeNode): number {
+    if (node.children.length === 0) return 0;
+    return Math.max(
+      ...node.children.map((child) => (child.branchLength ?? 1) + this.getMaxBranchLengthFromTree(child))
+    );
+  }
+
+  private niceRound(value: number): number {
+    const exp = Math.floor(Math.log10(value));
+    const base = Math.pow(10, exp);
+    const normalized = value / base;
+    if (normalized < 1.5) return base;
+    if (normalized < 3.5) return 2 * base;
+    if (normalized < 7.5) return 5 * base;
+    return 10 * base;
+  }
+
+  private getMetadataRow(name: string): Record<string, string> | null {
+    const { metadataTable, metadataIdColumn } = this.options;
+    if (!metadataTable) return null;
+    const idCol = metadataIdColumn ?? metadataTable.headers[0];
+    for (const row of metadataTable.rows) {
+      const id = row[idCol];
+      if (id === name || id === name.replace(/_/g, ' ') || id === name.replace(/ /g, '_')) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  private showTooltip(event: MouseEvent, node: TreeNode): void {
+    this.hideTooltip();
+    const dnm = this.options.tipColorMap?.displayNameByTip;
+    const name = dnm
+      ? (dnm.get(node.name) ?? dnm.get(node.name.replace(/_/g, ' ')) ?? dnm.get(node.name.replace(/ /g, '_')) ?? node.name.replace(/_/g, ' '))
+      : node.name.replace(/_/g, ' ');
+    let html = `<div class="tip-tooltip-name">${escapeHtml(name)}</div>`;
+    if (node.branchLength !== null) {
+      html += `<div class="tip-tooltip-row"><span class="tip-tooltip-key">Branch length</span><span>${node.branchLength}</span></div>`;
+    }
+    const row = this.getMetadataRow(node.name);
+    if (row) {
+      for (const header of this.options.metadataTable!.headers) {
+        const val = row[header];
+        if (val) {
+          html += `<div class="tip-tooltip-row"><span class="tip-tooltip-key">${escapeHtml(header)}</span><span>${escapeHtml(val)}</span></div>`;
+        }
+      }
+    }
+    const tip = document.createElement('div');
+    tip.className = 'tip-tooltip';
+    tip.innerHTML = html;
+    document.body.appendChild(tip);
+    this.tooltip = tip;
+    this.moveTooltip(event);
+  }
+
+  private moveTooltip(event: MouseEvent): void {
+    if (!this.tooltip) return;
+    const pad = 12;
+    let x = event.clientX + pad;
+    let y = event.clientY + pad;
+    const rect = this.tooltip.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth) x = event.clientX - rect.width - pad;
+    if (y + rect.height > window.innerHeight) y = event.clientY - rect.height - pad;
+    this.tooltip.style.left = x + 'px';
+    this.tooltip.style.top = y + 'px';
+  }
+
+  private hideTooltip(): void {
+    if (this.tooltip) { this.tooltip.remove(); this.tooltip = null; }
+  }
+
   private drawConnections(
     leftEnds: Map<string, { x: number; y: number }>,
     rightEnds: Map<string, { x: number; y: number }>,
@@ -455,6 +618,7 @@ export class TanglegramRenderer {
 
   destroy(): void {
     this.dismissContextMenu();
+    this.hideTooltip();
     document.removeEventListener('click', this.dismissContextMenuBound);
     d3.select(this.container).selectAll('*').remove();
   }

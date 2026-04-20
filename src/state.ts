@@ -26,6 +26,7 @@ export function decodeState(encoded: string): ViewState | null {
       tanglegramStyle: { ...defaults.tanglegramStyle, ...(parsed.tanglegramStyle ?? {}) },
       metadata: parsed.metadata ?? undefined,
       metadataIdCol: parsed.metadataIdCol ?? undefined,
+      metadataNameCol: parsed.metadataNameCol ?? undefined,
       metadataCatCol: parsed.metadataCatCol ?? undefined,
       darkMode: parsed.darkMode ?? undefined,
     };

@@ -79,6 +79,7 @@ export interface ViewState {
   tanglegramStyle: TanglegramStyle;
   metadata?: string;
   metadataIdCol?: string;
+  metadataNameCol?: string;
   metadataCatCol?: string;
   darkMode?: boolean;
 }

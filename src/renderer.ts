@@ -262,10 +262,15 @@ export class TreeRenderer {
 
     // Tip color lookup: check both raw name and underscore-to-space variants
     const tcm = this.tipColorMap?.colorByTip;
+    const dnm = this.tipColorMap?.displayNameByTip;
     const defaultLabelColor = themedColor(this.style.leafLabelColor, this.darkMode);
     const tipColor = (name: string): string => {
       if (!tcm) return defaultLabelColor;
       return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? defaultLabelColor;
+    };
+    const displayName = (name: string): string => {
+      if (!dnm) return formatLeafName(name);
+      return dnm.get(name) ?? dnm.get(name.replace(/_/g, ' ')) ?? dnm.get(name.replace(/ /g, '_')) ?? formatLeafName(name);
     };
 
     if (this.layoutType === 'rectangular') {
@@ -282,7 +287,7 @@ export class TreeRenderer {
         .attr('font-family', this.style.fontFamily)
         .attr('fill', (d) => tipColor(d.node.name))
         .attr('font-style', 'italic')
-        .text((d) => formatLeafName(d.node.name));
+        .text((d) => displayName(d.node.name));
 
       if (animate) {
         leafLabelSel.transition().duration(DURATION)
@@ -319,7 +324,7 @@ export class TreeRenderer {
         .attr('font-family', this.style.fontFamily)
         .attr('fill', (d) => tipColor(d.node.name))
         .attr('font-style', 'italic')
-        .text((d) => formatLeafName(d.node.name));
+        .text((d) => displayName(d.node.name));
     }
 
     // Internal node labels
@@ -577,7 +582,10 @@ export class TreeRenderer {
     const tip = document.createElement('div');
     tip.className = 'tip-tooltip';
 
-    const name = formatLeafName(node.name);
+    const dnm = this.tipColorMap?.displayNameByTip;
+    const name = dnm
+      ? (dnm.get(node.name) ?? dnm.get(node.name.replace(/_/g, ' ')) ?? dnm.get(node.name.replace(/ /g, '_')) ?? formatLeafName(node.name))
+      : formatLeafName(node.name);
     let html = `<div class="tip-tooltip-name">${escapeForTooltip(name)}</div>`;
 
     if (node.branchLength !== null) {

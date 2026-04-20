@@ -137,6 +137,7 @@ url = make_tree_link(
 | `tanglegramStyle` | dict | see below | Tanglegram connection settings |
 | `metadata` | str | — | CSV/TSV text for tip coloring |
 | `metadataIdCol` | str | — | Column name matching tree tip labels |
+| `metadataNameCol` | str | — | Column name to use as the display label (overrides tip ID in the tree) |
 | `metadataCatCol` | str | — | Column name with the category to color by |
 
 **`style` dict keys:**
