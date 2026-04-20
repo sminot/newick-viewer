@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
-import { TreeNode, LayoutResult, StyleOptions, TanglegramStyle } from './types';
+import { TreeNode, LayoutResult, LayoutEdge, StyleOptions, TanglegramStyle, TreeEditAction } from './types';
 import { computeLayout } from './layout';
+import { pruneNode, extractSubtree, rerootAt, ladderize } from './newick-parser';
 import type { TipColorMap } from './metadata';
 
 export interface TanglegramOptions {
@@ -9,7 +10,7 @@ export interface TanglegramOptions {
   tree2: TreeNode;
   style: StyleOptions;
   tanglegramStyle: TanglegramStyle;
-  onNodeFlip?: () => void;
+  onNodeEdit?: (newRoot: TreeNode, action: TreeEditAction, treeIndex: 1 | 2) => void;
   tipColorMap?: TipColorMap | null;
   darkMode?: boolean;
 }
@@ -30,11 +31,18 @@ export class TanglegramRenderer {
   private g!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private zoom!: d3.ZoomBehavior<SVGSVGElement, unknown>;
   private container: HTMLElement;
+  private contextMenu: HTMLElement | null = null;
+  private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: TanglegramOptions) {
     this.container = options.container;
     this.init();
     this.render();
+  }
+
+  updateTree(index: 1 | 2, newRoot: TreeNode): void {
+    if (index === 1) this.options.tree1 = newRoot;
+    else this.options.tree2 = newRoot;
   }
 
   private init(): void {
@@ -91,10 +99,10 @@ export class TanglegramRenderer {
     }
 
     // Draw left tree, capture label end positions
-    const leftLabelEnds = this.drawTree(layout1, style, 'left');
+    const leftLabelEnds = this.drawTree(layout1, style, 'left', 1);
 
     // Draw right tree, capture label end positions
-    const rightLabelEnds = this.drawTree(layout2, style, 'right');
+    const rightLabelEnds = this.drawTree(layout2, style, 'right', 2);
 
     // Draw connecting lines between matching leaves
     this.drawConnections(leftLabelEnds, rightLabelEnds, tanglegramStyle);
@@ -104,6 +112,8 @@ export class TanglegramRenderer {
     if (tcm && tcm.colorByTip.size > 0 && tcm.legend.length > 0) {
       this.renderLegend(tcm);
     }
+
+    document.addEventListener('click', this.dismissContextMenuBound);
   }
 
   private renderLegend(tcm: TipColorMap): void {
@@ -120,7 +130,7 @@ export class TanglegramRenderer {
     const legendGroup = this.g.append('g').attr('class', 'legend');
 
     tcm.legend.forEach((item, i) => {
-      const y = y0 + i * rowHeight + 6;
+      const y = y0 + i * rowHeight + rowHeight / 2;
       legendGroup.append('circle')
         .attr('cx', x0)
         .attr('cy', y)
@@ -138,14 +148,12 @@ export class TanglegramRenderer {
     });
 
     const contentBBox = legendGroup.node()!.getBBox();
-    const bgPadX = 10;
-    const bgPadY = 6;
-    const bgHeight = tcm.legend.length * rowHeight + 12;
+    const pad = 8;
     legendGroup.insert('rect', ':first-child')
-      .attr('x', contentBBox.x - bgPadX)
-      .attr('y', y0 - bgPadY)
-      .attr('width', contentBBox.width + bgPadX * 2)
-      .attr('height', bgHeight)
+      .attr('x', contentBBox.x - pad)
+      .attr('y', contentBBox.y - pad)
+      .attr('width', contentBBox.width + pad * 2)
+      .attr('height', contentBBox.height + pad * 2)
       .attr('rx', 4)
       .attr('fill', this.options.darkMode ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)')
       .attr('stroke', this.options.darkMode ? '#444' : '#dfe1e2')
@@ -160,13 +168,15 @@ export class TanglegramRenderer {
   private drawTree(
     layout: LayoutResult,
     style: StyleOptions,
-    side: 'left' | 'right'
+    side: 'left' | 'right',
+    treeIndex: 1 | 2
   ): Map<string, { x: number; y: number }> {
     const group = this.g.append('g').attr('class', `tree-${side}`);
 
     const darkMode = !!this.options.darkMode;
     const branchColor = themedColor(style.branchColor, darkMode);
     const defaultLabelColor = themedColor(style.leafLabelColor, darkMode);
+    const self = this;
 
     // Tip color lookup
     const tcm = this.options.tipColorMap?.colorByTip;
@@ -175,6 +185,9 @@ export class TanglegramRenderer {
       return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? defaultLabelColor;
     };
     const hasTipColors = tcm && tcm.size > 0;
+
+    // Root node (parentX === null)
+    const root = layout.nodes.find((n) => n.parentX === null)!.node;
 
     // Edges with elbow connectors
     group.selectAll('path.branch')
@@ -221,35 +234,68 @@ export class TanglegramRenderer {
       .attr('r', hasTipColors ? 4 : 2)
       .attr('fill', (d) => tipColor(d.node.name));
 
-    // Clickable internal node circles (for flipping child order)
-    const internalNodes = layout.nodes.filter((n) => n.node.children.length > 0);
-    const flipCallback = this.options.onNodeFlip;
-    if (flipCallback) {
-      group.selectAll('circle.internal-node')
-        .data(internalNodes)
+    // Branch length labels
+    if (style.showBranchLengths) {
+      // Key edges by their target node so we can look up the already-mirrored coordinates
+      const edgeByNode = new Map<TreeNode, LayoutEdge>();
+      for (const e of layout.edges) edgeByNode.set(e.targetNode, e);
+
+      const branchNodes = layout.nodes.filter(
+        (n) => n.node.branchLength !== null && n.parentX !== null
+      );
+      group.selectAll('text.branch-length')
+        .data(branchNodes)
         .enter()
-        .append('circle')
-        .attr('class', 'internal-node')
-        .attr('cx', (d) => d.x)
-        .attr('cy', (d) => d.y)
-        .attr('r', 5)
-        .attr('fill', 'transparent')
-        .attr('stroke', 'transparent')
-        .attr('stroke-width', 1)
-        .attr('cursor', 'pointer')
-        .on('mouseenter', function () {
-          const hoverFill = darkMode ? 'rgba(255,255,255,0.15)' : '#dfe1e2';
-          const hoverStroke = darkMode ? '#888' : '#71767a';
-          d3.select(this).attr('fill', hoverFill).attr('stroke', hoverStroke);
+        .append('text')
+        .attr('class', 'branch-length')
+        .attr('x', (d) => {
+          const edge = edgeByNode.get(d.node);
+          // Midpoint of the horizontal segment (elbowX → targetX)
+          return edge ? ((edge.elbowX ?? edge.sourceX) + edge.targetX) / 2 : d.x;
         })
-        .on('mouseleave', function () {
-          d3.select(this).attr('fill', 'transparent').attr('stroke', 'transparent');
-        })
-        .on('click', function (_event, d) {
-          d.node.children.reverse();
-          flipCallback();
-        });
+        .attr('y', (d) => d.y - 4)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', (style.internalLabelSize - 1) + 'px')
+        .attr('font-family', style.fontFamily)
+        .attr('fill', darkMode ? '#888' : '#999')
+        .text((d) => d.node.branchLength?.toFixed(4) ?? '');
     }
+
+    // Interactive hit targets for all nodes (click internal = flip, right-click = context menu)
+    const internalNodes = layout.nodes.filter((n) => n.node.children.length > 0);
+    const allNodes = [...internalNodes, ...leafNodes];
+
+    group.selectAll('circle.node-target')
+      .data(allNodes)
+      .enter()
+      .append('circle')
+      .attr('class', 'node-target')
+      .attr('cx', (d) => d.x)
+      .attr('cy', (d) => d.y)
+      .attr('r', 6)
+      .attr('fill', 'transparent')
+      .attr('stroke', 'transparent')
+      .attr('stroke-width', 1)
+      .attr('cursor', 'pointer')
+      .on('mouseenter', function () {
+        const hoverFill = darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)';
+        const hoverStroke = darkMode ? '#888' : '#71767a';
+        d3.select(this).attr('fill', hoverFill).attr('stroke', hoverStroke);
+      })
+      .on('mouseleave', function () {
+        d3.select(this).attr('fill', 'transparent').attr('stroke', 'transparent');
+      })
+      .on('click', function (_event, d) {
+        if (d.node.children.length > 0) {
+          d.node.children.reverse();
+          self.options.onNodeEdit?.(root, 'flip', treeIndex);
+        }
+      })
+      .on('contextmenu', function (event, d) {
+        event.preventDefault();
+        event.stopPropagation();
+        self.showContextMenu(event.clientX, event.clientY, d.node, root, treeIndex);
+      });
 
     // Measure label bounding boxes to find the end of each label
     const labelEnds = new Map<string, { x: number; y: number }>();
@@ -262,6 +308,94 @@ export class TanglegramRenderer {
     });
 
     return labelEnds;
+  }
+
+  private showContextMenu(x: number, y: number, node: TreeNode, root: TreeNode, treeIndex: 1 | 2): void {
+    this.dismissContextMenu();
+    const menu = document.createElement('div');
+    menu.className = 'tree-context-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+
+    const isInternal = node.children.length > 0;
+    const isRoot = node === root;
+    const nodeName = node.name
+      ? node.name.replace(/_/g, ' ')
+      : (isInternal ? 'this clade' : 'this leaf');
+
+    const items: { label: string; action: TreeEditAction }[] = [];
+
+    if (isInternal) {
+      items.push({ label: 'Flip children', action: 'flip' });
+      items.push({ label: 'Ladderize (large first)', action: 'ladderize-desc' });
+      items.push({ label: 'Ladderize (small first)', action: 'ladderize-asc' });
+    }
+    if (!isRoot) {
+      items.push({ label: `Remove ${nodeName}`, action: 'prune' });
+    }
+    if (isInternal && !isRoot) {
+      items.push({ label: `Keep only ${nodeName}`, action: 'keep' });
+      items.push({ label: 'Reroot here', action: 'reroot' });
+    }
+
+    for (const item of items) {
+      const el = document.createElement('div');
+      el.className = 'tree-context-menu-item';
+      el.textContent = item.label;
+      el.addEventListener('click', () => {
+        this.dismissContextMenu();
+        this.executeAction(item.action, node, root, treeIndex);
+      });
+      menu.appendChild(el);
+    }
+
+    document.body.appendChild(menu);
+    this.contextMenu = menu;
+
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) menu.style.left = (x - rect.width) + 'px';
+      if (rect.bottom > window.innerHeight) menu.style.top = (y - rect.height) + 'px';
+    });
+  }
+
+  private dismissContextMenu(): void {
+    if (this.contextMenu) {
+      this.contextMenu.remove();
+      this.contextMenu = null;
+    }
+  }
+
+  private executeAction(action: TreeEditAction, node: TreeNode, root: TreeNode, treeIndex: 1 | 2): void {
+    const onNodeEdit = this.options.onNodeEdit;
+    if (!onNodeEdit) return;
+
+    let newRoot = root;
+    switch (action) {
+      case 'flip':
+        node.children.reverse();
+        break;
+      case 'ladderize-desc':
+        ladderize(node, false);
+        break;
+      case 'ladderize-asc':
+        ladderize(node, true);
+        break;
+      case 'prune': {
+        const result = pruneNode(root, node);
+        if (!result) return;
+        newRoot = result;
+        break;
+      }
+      case 'keep':
+        newRoot = extractSubtree(node);
+        newRoot.branchLength = null;
+        break;
+      case 'reroot':
+        newRoot = rerootAt(root, node);
+        break;
+    }
+    onNodeEdit(newRoot, action, treeIndex);
   }
 
   private drawConnections(
@@ -320,6 +454,8 @@ export class TanglegramRenderer {
   }
 
   destroy(): void {
+    this.dismissContextMenu();
+    document.removeEventListener('click', this.dismissContextMenuBound);
     d3.select(this.container).selectAll('*').remove();
   }
 }

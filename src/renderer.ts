@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { LayoutResult, LayoutNode, LayoutEdge, StyleOptions, LayoutType, TreeNode } from './types';
+import { LayoutResult, LayoutNode, LayoutEdge, StyleOptions, LayoutType, TreeNode, TreeEditAction } from './types';
 import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
 import type { TipColorMap, MetadataTable } from './metadata';
 
@@ -15,8 +15,6 @@ function formatLeafName(name: string): string {
 function escapeForTooltip(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-export type TreeEditAction = 'flip' | 'prune' | 'keep' | 'reroot' | 'ladderize-desc' | 'ladderize-asc';
 
 export interface RendererOptions {
   container: HTMLElement;

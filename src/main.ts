@@ -319,9 +319,17 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
         tanglegramStyle: state.tanglegramStyle,
         tipColorMap: currentTipColorMap,
         darkMode: state.darkMode,
-        onNodeFlip: () => {
+        onNodeEdit: (newRoot, _action, treeIndex) => {
           pushUndo();
-          syncTreeToTextarea(tree1, tree2);
+          currentTanglegram!.updateTree(treeIndex, newRoot);
+          if (treeIndex === 1) {
+            state.newick1 = toNewick(newRoot) + ';';
+            syncTextarea('newick-input-1', state.newick1);
+          } else {
+            state.newick2 = toNewick(newRoot) + ';';
+            syncTextarea('newick-input-2', state.newick2);
+          }
+          setStateInURL(state);
           currentTanglegram!.render();
         },
       });
@@ -417,6 +425,7 @@ function buildToolbar(): void {
   const btnRadial = document.createElement('button');
   btnRadial.textContent = 'Radial';
   btnRadial.className = state.layout === 'radial' ? 'active' : '';
+  btnRadial.disabled = state.tanglegram;
   btnRadial.addEventListener('click', () => {
     state.layout = 'radial';
     buildToolbar();
@@ -432,6 +441,7 @@ function buildToolbar(): void {
   const btnTangle = document.createElement('button');
   btnTangle.textContent = 'Tanglegram';
   btnTangle.className = state.tanglegram ? 'active' : '';
+  btnTangle.disabled = state.layout === 'radial';
   btnTangle.addEventListener('click', () => {
     state.tanglegram = !state.tanglegram;
     buildToolbar();

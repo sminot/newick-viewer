@@ -12,6 +12,8 @@ export interface TreeNode {
 
 export type LayoutType = 'rectangular' | 'radial';
 
+export type TreeEditAction = 'flip' | 'prune' | 'keep' | 'reroot' | 'ladderize-desc' | 'ladderize-asc';
+
 export interface LayoutNode {
   node: TreeNode;
   x: number;
