@@ -1,6 +1,13 @@
 import { TreeNode, LayoutNode, LayoutEdge, LayoutResult, LayoutType } from './types';
 import { getLeafNames, getMaxBranchLength } from './newick-parser';
 
+/** Margins used by the rectangular layout — exported so callers can enforce
+ *  a minimum tree width that prevents plotWidth from going negative. */
+export const RECT_MARGIN_LEFT = 10;
+export const RECT_MARGIN_RIGHT = 150;
+export const RECT_MARGIN_TOP = 20;
+export const RECT_MARGIN_BOTTOM = 20;
+
 /** Compute rectangular (dendrogram) layout */
 export function computeRectangularLayout(
   root: TreeNode,
@@ -12,10 +19,10 @@ export function computeRectangularLayout(
   const leafCount = leaves.length;
   const maxBranchLen = useBranchLengths ? getMaxBranchLength(root) : getMaxDepthValue(root);
 
-  const marginLeft = 10;
-  const marginRight = 150;
-  const marginTop = 20;
-  const marginBottom = 20;
+  const marginLeft = RECT_MARGIN_LEFT;
+  const marginRight = RECT_MARGIN_RIGHT;
+  const marginTop = RECT_MARGIN_TOP;
+  const marginBottom = RECT_MARGIN_BOTTOM;
 
   const plotWidth = width - marginLeft - marginRight;
   const plotHeight = height - marginTop - marginBottom;

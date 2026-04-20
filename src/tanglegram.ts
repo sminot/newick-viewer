@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 import { TreeNode, LayoutResult, LayoutEdge, StyleOptions, TanglegramStyle, TreeEditAction } from './types';
-import { computeLayout } from './layout';
+import { computeLayout, RECT_MARGIN_LEFT, RECT_MARGIN_RIGHT, RECT_MARGIN_TOP, RECT_MARGIN_BOTTOM } from './layout';
 import { pruneNode, extractSubtree, rerootAt, ladderize } from './newick-parser';
 import type { TipColorMap, MetadataTable } from './metadata';
 
@@ -86,27 +86,78 @@ export class TanglegramRenderer {
 
     // Use spacing setting to control gap between trees
     const gapFraction = Math.max(0.05, Math.min(0.6, tanglegramStyle.spacing));
-    const treeWidth = totalWidth * (1 - gapFraction) / 2;
+    const treeSpace = totalWidth * (1 - gapFraction);
     const gapWidth = totalWidth * gapFraction;
-    const treeHeight = totalHeight;
+
+    // Minimum tree width: must exceed layout margins so plotWidth stays positive.
+    // RECT_MARGIN_LEFT + RECT_MARGIN_RIGHT reserve space for labels; add 40px for branches.
+    const MIN_TREE_WIDTH = RECT_MARGIN_LEFT + RECT_MARGIN_RIGHT + 40; // 200px
+    const MIN_TREE_HEIGHT = RECT_MARGIN_TOP + RECT_MARGIN_BOTTOM + 40; // 80px
+
+    // Fold-change width balance: 2^s fraction goes to left, remainder to right
+    const sw = tanglegramStyle.widthScaler ?? 0;
+    const leftWidthFrac = Math.pow(2, sw) / (Math.pow(2, sw) + 1);
+    const rawLeftWidth = treeSpace * leftWidthFrac;
+    // Clamp so neither tree drops below MIN_TREE_WIDTH.  When treeSpace itself is
+    // too narrow for two trees, give each half and accept the layout degradation.
+    const minWidth = Math.min(MIN_TREE_WIDTH, treeSpace / 2);
+    const leftTreeWidth = Math.min(Math.max(rawLeftWidth, minWidth), treeSpace - minWidth);
+    const rightTreeWidth = treeSpace - leftTreeWidth;
+
+    // Fold-change height balance: each tree gets an independent height
+    const sh = tanglegramStyle.heightScaler ?? 0;
+    const leftHeightFrac = Math.pow(2, sh) / (Math.pow(2, sh) + 1);
+    const leftTreeHeight = Math.max(totalHeight * 2 * leftHeightFrac, MIN_TREE_HEIGHT);
+    const rightTreeHeight = Math.max(totalHeight * 2 * (1 - leftHeightFrac), MIN_TREE_HEIGHT);
 
     // Layout left tree (normal)
-    const layout1 = computeLayout(tree1, 'rectangular', treeWidth, treeHeight);
+    const layout1 = computeLayout(tree1, 'rectangular', leftTreeWidth, leftTreeHeight);
 
     // Layout right tree (mirrored)
-    const layout2 = computeLayout(tree2, 'rectangular', treeWidth, treeHeight);
+    const layout2 = computeLayout(tree2, 'rectangular', rightTreeWidth, rightTreeHeight);
 
     // Mirror the right tree: flip X coordinates
-    const rightOffset = treeWidth + gapWidth;
+    const rightOffset = leftTreeWidth + gapWidth;
     for (const node of layout2.nodes) {
-      node.x = rightOffset + (treeWidth - node.x);
+      node.x = rightOffset + (rightTreeWidth - node.x);
     }
     for (const edge of layout2.edges) {
-      edge.sourceX = rightOffset + (treeWidth - edge.sourceX);
-      edge.targetX = rightOffset + (treeWidth - edge.targetX);
+      edge.sourceX = rightOffset + (rightTreeWidth - edge.sourceX);
+      edge.targetX = rightOffset + (rightTreeWidth - edge.targetX);
       if (edge.elbowX !== undefined) {
-        edge.elbowX = rightOffset + (treeWidth - edge.elbowX);
+        edge.elbowX = rightOffset + (rightTreeWidth - edge.elbowX);
       }
+    }
+
+    // Align right tree vertically to minimize average absolute offset of connections.
+    // Build name→y maps for leaf nodes in each tree.
+    const leftLeafY = new Map<string, number>();
+    for (const n of layout1.nodes) {
+      if (n.node.children.length === 0) leftLeafY.set(n.node.name, n.y);
+    }
+    const rightLeafY = new Map<string, number>();
+    for (const n of layout2.nodes) {
+      if (n.node.children.length === 0) rightLeafY.set(n.node.name, n.y);
+    }
+    const diffs: number[] = [];
+    for (const [name, lY] of leftLeafY) {
+      const rY = rightLeafY.get(name);
+      if (rY !== undefined) diffs.push(lY - rY);
+    }
+    // Optimal offset for minimizing sum of absolute deviations = median of diffs.
+    // Fallback when no shared leaves: align vertical midpoints.
+    let yOffset: number;
+    if (diffs.length === 0) {
+      yOffset = leftTreeHeight / 2 - rightTreeHeight / 2;
+    } else {
+      diffs.sort((a, b) => a - b);
+      yOffset = diffs[Math.floor(diffs.length / 2)];
+    }
+    for (const node of layout2.nodes) node.y += yOffset;
+    for (const edge of layout2.edges) {
+      edge.sourceY += yOffset;
+      edge.targetY += yOffset;
+      if (edge.elbowY !== undefined) edge.elbowY += yOffset;
     }
 
     // Draw left tree, capture label end positions
@@ -122,10 +173,17 @@ export class TanglegramRenderer {
     // Draw connecting lines between matching leaves
     this.drawConnections(leftLabelEnds, rightLabelEnds, tanglegramStyle);
 
-    // Color legend
+    // Color legend — filter to categories visible in either tree
     const tcm = this.options.tipColorMap;
     if (tcm && tcm.colorByTip.size > 0 && tcm.legend.length > 0) {
-      this.renderLegend(tcm);
+      const allLeafNames = [...leftLeafY.keys(), ...rightLeafY.keys()];
+      const usedColors = new Set<string>();
+      for (const name of allLeafNames) {
+        const color = tcm.colorByTip.get(name) ?? tcm.colorByTip.get(name.replace(/_/g, ' ')) ?? tcm.colorByTip.get(name.replace(/ /g, '_'));
+        if (color) usedColors.add(color);
+      }
+      const visibleLegend = tcm.legend.filter((item) => usedColors.has(item.color));
+      if (visibleLegend.length > 0) this.renderLegend({ ...tcm, legend: visibleLegend });
     }
 
     document.addEventListener('click', this.dismissContextMenuBound);

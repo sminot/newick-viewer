@@ -53,6 +53,10 @@ export interface TanglegramStyle {
   connectionLineStyle: ConnectionLineStyle;
   showLeafLabels1: boolean;   // show tip labels on left tree
   showLeafLabels2: boolean;   // show tip labels on right tree
+  /** Fold-change width balance: 0 = equal, 1 = left 2× right, -1 = left ½ right */
+  widthScaler: number;
+  /** Fold-change height balance: 0 = equal, 1 = left 2× right, -1 = left ½ right */
+  heightScaler: number;
 }
 
 export interface StyleOptions {
@@ -95,6 +99,8 @@ export const DEFAULT_TANGLEGRAM_STYLE: TanglegramStyle = {
   connectionLineStyle: 'solid',
   showLeafLabels1: true,
   showLeafLabels2: true,
+  widthScaler: 0,
+  heightScaler: 0,
 };
 
 export const DEFAULT_STYLE: StyleOptions = {

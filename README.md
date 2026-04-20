@@ -169,6 +169,8 @@ url = make_tree_link(
 | `connectionLineStyle` | str | `"solid"` | `"solid"`, `"dashed"`, or `"dotted"` |
 | `showLeafLabels1` | bool | `True` | Show tip labels on the left tree |
 | `showLeafLabels2` | bool | `True` | Show tip labels on the right tree |
+| `widthScaler` | number | `0` | Fold-change width balance: `0` = equal, `1` = left tree 2× wider, `-1` = right tree 2× wider |
+| `heightScaler` | number | `0` | Fold-change height balance: `0` = equal, `1` = left tree 2× taller, `-1` = right tree 2× taller |
 
 Missing fields fall back to defaults; unknown fields are ignored.
 ### Can I generate share URLs programmatically?

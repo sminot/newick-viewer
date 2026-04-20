@@ -94,9 +94,11 @@ function syncMetadataToState(): void {
   }
 }
 
-// Undo/redo history for tree edits
-const undoStack: string[] = [];
-const redoStack: string[] = [];
+// Undo/redo history for tree edits — stores both newicks so tanglegram edits on
+// either tree can be fully reverted.
+interface HistoryEntry { newick1: string; newick2: string; }
+const undoStack: HistoryEntry[] = [];
+const redoStack: HistoryEntry[] = [];
 const MAX_HISTORY = 50;
 
 // Track whether the first render has happened (for mobile auto-collapse)
@@ -105,13 +107,12 @@ let lastRenderedNewick = ''; // Track tree content to detect structural changes
 let lastRenderedNewick2 = ''; // Track newick2 for tanglegram change detection
 let lastRenderedLayout: string = ''; // Track layout type for zoom preservation
 
-/** Push the current newick1 onto the undo stack (call before making a change) */
+/** Snapshot both newicks before a change (call before mutating state). */
 function pushUndo(): void {
-  if (state.newick1) {
-    undoStack.push(state.newick1);
-    if (undoStack.length > MAX_HISTORY) undoStack.shift();
-  }
-  redoStack.length = 0; // clear redo on new action
+  if (!state.newick1 && !state.newick2) return;
+  undoStack.push({ newick1: state.newick1, newick2: state.newick2 });
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack.length = 0;
   updateUndoRedoButtons();
 }
 
@@ -126,22 +127,25 @@ function updateUndoRedoButtons(): void {
   if (btnRedo) btnRedo.disabled = !canRedo();
 }
 
-function undo(): void {
-  if (!canUndo()) return;
-  redoStack.push(state.newick1);
-  state.newick1 = undoStack.pop()!;
+function applyHistoryEntry(entry: HistoryEntry): void {
+  state.newick1 = entry.newick1;
+  state.newick2 = entry.newick2;
   syncTextarea('newick-input-1', state.newick1);
+  syncTextarea('newick-input-2', state.newick2);
   renderTree();
   updateUndoRedoButtons();
 }
 
+function undo(): void {
+  if (!canUndo()) return;
+  redoStack.push({ newick1: state.newick1, newick2: state.newick2 });
+  applyHistoryEntry(undoStack.pop()!);
+}
+
 function redo(): void {
   if (!canRedo()) return;
-  undoStack.push(state.newick1);
-  state.newick1 = redoStack.pop()!;
-  syncTextarea('newick-input-1', state.newick1);
-  renderTree();
-  updateUndoRedoButtons();
+  undoStack.push({ newick1: state.newick1, newick2: state.newick2 });
+  applyHistoryEntry(redoStack.pop()!);
 }
 
 function applyDarkMode(): void {
@@ -1229,6 +1233,18 @@ function buildControlsPanel(): void {
     // Spacing between trees
     addRangeControl(panel, 'Tree spacing', state.tanglegramStyle.spacing, 0.05, 0.6, 0.01, (v) => {
       state.tanglegramStyle.spacing = v;
+      debouncedRenderTree();
+    });
+
+    // Width balance: fold-change balance of horizontal space between trees
+    addRangeControl(panel, 'Width balance', state.tanglegramStyle.widthScaler, -2, 2, 0.1, (v) => {
+      state.tanglegramStyle.widthScaler = v;
+      debouncedRenderTree();
+    });
+
+    // Height balance: fold-change balance of vertical space between trees
+    addRangeControl(panel, 'Height balance', state.tanglegramStyle.heightScaler, -2, 2, 0.1, (v) => {
+      state.tanglegramStyle.heightScaler = v;
       debouncedRenderTree();
     });
 

@@ -487,6 +487,18 @@ export class TreeRenderer {
   private renderLegend(): void {
     if (!this.tipColorMap?.legend.length) return;
 
+    // Filter legend to categories present in the currently-visible leaves
+    const tcm = this.tipColorMap;
+    const visibleLeaves = this.currentLayout?.nodes.filter((n) => n.node.children.length === 0) ?? [];
+    const usedColors = new Set<string>();
+    for (const n of visibleLeaves) {
+      const name = n.node.name;
+      const color = tcm.colorByTip.get(name) ?? tcm.colorByTip.get(name.replace(/_/g, ' ')) ?? tcm.colorByTip.get(name.replace(/ /g, '_'));
+      if (color) usedColors.add(color);
+    }
+    const visibleLegend = tcm.legend.filter((item) => usedColors.has(item.color));
+    if (!visibleLegend.length) return;
+
     // Use the bounding box of the existing tree content to place legend to the right
     const svgNode = this.g.node();
     if (!svgNode) return;
@@ -515,7 +527,7 @@ export class TreeRenderer {
     }
 
     // Render dots and labels
-    this.tipColorMap.legend.forEach((item, i) => {
+    visibleLegend.forEach((item, i) => {
       const y = y0 + i * rowHeight + rowHeight / 2;
       legendGroup.append('circle')
         .attr('cx', x0)

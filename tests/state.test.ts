@@ -39,6 +39,8 @@ describe('state encoding/decoding', () => {
         connectionLineStyle: 'dashed',
         showLeafLabels1: true,
         showLeafLabels2: true,
+        widthScaler: 0,
+        heightScaler: 0,
       },
     };
     const encoded = encodeState(state);
