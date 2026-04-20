@@ -262,4 +262,4 @@ Pull requests are also welcome. See [DEVELOPMENT.md](DEVELOPMENT.md) for setup i
 
 ## Development
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, testing, deployment, and Cirro integration details.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, testing, and deployment details.
