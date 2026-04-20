@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { LayoutResult, LayoutNode, StyleOptions, LayoutType, TreeNode } from './types';
+import { LayoutResult, LayoutNode, LayoutEdge, StyleOptions, LayoutType, TreeNode } from './types';
 import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
 import type { TipColorMap, MetadataTable } from './metadata';
 
@@ -33,6 +33,8 @@ export interface RendererOptions {
   metadataIdColumn?: string;
   /** Whether dark mode is active */
   darkMode?: boolean;
+  /** Previous layout to animate from (flip/ladderize transitions) */
+  prevLayout?: LayoutResult;
 }
 
 /** Default branch/label color; swapped for dark mode when user hasn't customized. */
@@ -72,7 +74,7 @@ export class TreeRenderer {
     this.metadataIdColumn = options.metadataIdColumn;
     this.darkMode = !!options.darkMode;
     this.init();
-    this.render(options.layout);
+    this.render(options.layout, options.prevLayout);
   }
 
   private init(): void {
@@ -192,30 +194,55 @@ export class TreeRenderer {
     });
   }
 
-  render(layout: LayoutResult): void {
+  render(layout: LayoutResult, prevLayout?: LayoutResult): void {
     this.currentLayout = layout;
     this.g.selectAll('*').remove();
 
+    // Animate node/edge positions when a previous layout is provided (flip/ladderize).
+    // Only for rectangular layout — radial angle changes are too complex to interpolate.
+    const DURATION = 250;
+    const animate = !!prevLayout && this.layoutType === 'rectangular';
+
+    const prevNodePos = new Map<TreeNode, LayoutNode>();
+    const prevEdgeData = new Map<TreeNode, LayoutEdge>();
+    if (animate) {
+      for (const n of prevLayout!.nodes) prevNodePos.set(n.node, n);
+      for (const e of prevLayout!.edges) prevEdgeData.set(e.targetNode, e);
+    }
+
+    // Starting position for a node: old position if available, else final position
+    const sx = (d: LayoutNode) => prevNodePos.get(d.node)?.x ?? d.x;
+    const sy = (d: LayoutNode) => prevNodePos.get(d.node)?.y ?? d.y;
+
     // Draw edges
     const edgeGroup = this.g.append('g').attr('class', 'edges');
-
     const branchColor = themedColor(this.style.branchColor, this.darkMode);
 
+    const rectPath = (d: LayoutEdge) =>
+      d.elbowX !== undefined && d.elbowY !== undefined
+        ? `M${d.sourceX},${d.sourceY} V${d.elbowY} H${d.targetX}`
+        : `M${d.sourceX},${d.sourceY} L${d.targetX},${d.targetY}`;
+
     if (this.layoutType === 'rectangular') {
-      edgeGroup.selectAll('path.branch')
+      const edgeSel = edgeGroup.selectAll('path.branch')
         .data(layout.edges)
         .enter()
         .append('path')
         .attr('class', 'branch')
         .attr('d', (d) => {
-          if (d.elbowX !== undefined && d.elbowY !== undefined) {
-            return `M${d.sourceX},${d.sourceY} V${d.elbowY} H${d.targetX}`;
+          if (animate) {
+            const old = prevEdgeData.get(d.targetNode);
+            if (old) return rectPath(old);
           }
-          return `M${d.sourceX},${d.sourceY} L${d.targetX},${d.targetY}`;
+          return rectPath(d);
         })
         .attr('fill', 'none')
         .attr('stroke', branchColor)
         .attr('stroke-width', this.style.branchWidth);
+
+      if (animate) {
+        edgeSel.transition().duration(DURATION).attr('d', rectPath);
+      }
     } else {
       edgeGroup.selectAll('line.branch')
         .data(layout.edges)
@@ -244,13 +271,13 @@ export class TreeRenderer {
     };
 
     if (this.layoutType === 'rectangular') {
-      nodeGroup.selectAll('text.leaf-label')
+      const leafLabelSel = nodeGroup.selectAll('text.leaf-label')
         .data(leafNodes)
         .enter()
         .append('text')
         .attr('class', 'leaf-label')
-        .attr('x', (d) => d.x + 6)
-        .attr('y', (d) => d.y)
+        .attr('x', (d) => sx(d) + 6)
+        .attr('y', (d) => sy(d))
         .attr('dy', '0.35em')
         .attr('text-anchor', 'start')
         .attr('font-size', this.style.leafLabelSize + 'px')
@@ -258,6 +285,12 @@ export class TreeRenderer {
         .attr('fill', (d) => tipColor(d.node.name))
         .attr('font-style', 'italic')
         .text((d) => formatLeafName(d.node.name));
+
+      if (animate) {
+        leafLabelSel.transition().duration(DURATION)
+          .attr('x', (d) => d.x + 6)
+          .attr('y', (d) => d.y);
+      }
     } else {
       const cx = layout.width / 2;
       const cy = layout.height / 2;
@@ -293,18 +326,24 @@ export class TreeRenderer {
 
     // Internal node labels
     if (this.style.showInternalLabels) {
-      nodeGroup.selectAll('text.internal-label')
+      const intLabelSel = nodeGroup.selectAll('text.internal-label')
         .data(internalNodes.filter((n) => n.node.name))
         .enter()
         .append('text')
         .attr('class', 'internal-label')
-        .attr('x', (d) => d.x)
-        .attr('y', (d) => d.y - 6)
+        .attr('x', (d) => sx(d))
+        .attr('y', (d) => sy(d) - 6)
         .attr('text-anchor', 'middle')
         .attr('font-size', this.style.internalLabelSize + 'px')
         .attr('font-family', this.style.fontFamily)
         .attr('fill', this.darkMode ? '#aaa' : '#666')
         .text((d) => d.node.name);
+
+      if (animate) {
+        intLabelSel.transition().duration(DURATION)
+          .attr('x', (d) => d.x)
+          .attr('y', (d) => d.y - 6);
+      }
     }
 
     // Branch length labels
@@ -312,23 +351,15 @@ export class TreeRenderer {
       const branchNodes = layout.nodes.filter(
         (n) => n.node.branchLength !== null && n.parentX !== null
       );
-      nodeGroup.selectAll('text.branch-length')
+      const blSel = nodeGroup.selectAll('text.branch-length')
         .data(branchNodes)
         .enter()
         .append('text')
         .attr('class', 'branch-length')
-        .attr('x', (d) => {
-          if (this.layoutType === 'rectangular') {
-            // Position along the horizontal segment of the elbow connector
-            return ((d.x + (d.parentX ?? d.x)) / 2);
-          }
-          // Radial: midpoint between node and parent
-          return ((d.x + (d.parentX ?? d.x)) / 2);
-        })
+        .attr('x', (d) => (d.x + (d.parentX ?? d.x)) / 2)
         .attr('y', (d) => {
           if (this.layoutType === 'rectangular') {
-            // The horizontal segment is at the child's Y, offset label above it
-            return d.y - 4;
+            return sy(d) - 4;
           }
           return ((d.y + (d.parentY ?? d.y)) / 2) - 4;
         })
@@ -337,26 +368,37 @@ export class TreeRenderer {
         .attr('font-family', this.style.fontFamily)
         .attr('fill', this.darkMode ? '#888' : '#999')
         .text((d) => d.node.branchLength?.toFixed(4) ?? '');
+
+      if (animate) {
+        blSel.transition().duration(DURATION)
+          .attr('y', (d) => d.y - 4);
+      }
     }
 
     // Leaf node dots (colored by metadata if available)
     const hasTipColors = tcm && tcm.size > 0;
-    nodeGroup.selectAll('circle.leaf-node')
+    const leafDotSel = nodeGroup.selectAll('circle.leaf-node')
       .data(leafNodes)
       .enter()
       .append('circle')
       .attr('class', 'leaf-node')
-      .attr('cx', (d) => d.x)
-      .attr('cy', (d) => d.y)
+      .attr('cx', (d) => sx(d))
+      .attr('cy', (d) => sy(d))
       .attr('r', hasTipColors ? 4 : 2)
       .attr('fill', (d) => tipColor(d.node.name));
+
+    if (animate) {
+      leafDotSel.transition().duration(DURATION)
+        .attr('cx', (d) => d.x)
+        .attr('cy', (d) => d.y);
+    }
 
     // Legend (when tip colors are active)
     if (hasTipColors && this.tipColorMap?.legend) {
       this.renderLegend();
     }
 
-    // Interactive node hit targets (click to flip, right-click for context menu)
+    // Interactive node hit targets (always at final positions — no animation)
     const allClickableNodes = [...internalNodes, ...leafNodes];
     const editCallback = this.onTreeEdit;
     const root = this.root;
@@ -446,16 +488,30 @@ export class TreeRenderer {
     const bbox = svgNode.getBBox();
     const legendMargin = 30;
     const x0 = bbox.x + bbox.width + legendMargin;
-    const y0 = bbox.y + 10;
     const fontSize = this.style.legendLabelSize;
     const rowHeight = fontSize + 6;
     const dotR = Math.max(3, Math.round(fontSize * 0.45));
+    const titleText = this.style.legendTitle?.trim() ?? '';
+    const titleHeight = titleText ? fontSize + 8 : 0;
+    const y0 = bbox.y + 10 + titleHeight;
 
     const legendGroup = this.g.append('g').attr('class', 'legend');
 
-    // Render dots and labels first to measure text width
+    // Optional title above items
+    if (titleText) {
+      legendGroup.append('text')
+        .attr('x', x0)
+        .attr('y', bbox.y + 10 + fontSize)
+        .attr('font-size', fontSize + 'px')
+        .attr('font-family', this.style.fontFamily)
+        .attr('font-weight', '600')
+        .attr('fill', this.darkMode ? '#e0e0e0' : '#1b1b1b')
+        .text(titleText);
+    }
+
+    // Render dots and labels
     this.tipColorMap.legend.forEach((item, i) => {
-      const y = y0 + i * rowHeight + 6;
+      const y = y0 + i * rowHeight + rowHeight / 2;
       legendGroup.append('circle')
         .attr('cx', x0)
         .attr('cy', y)
@@ -472,16 +528,14 @@ export class TreeRenderer {
         .text(item.category);
     });
 
-    // Measure actual content width and insert background behind everything
+    // Measure actual content and insert background with equal padding on all sides
     const contentBBox = legendGroup.node()!.getBBox();
-    const bgPadX = 10;
-    const bgPadY = 6;
-    const bgHeight = this.tipColorMap.legend.length * rowHeight + 12;
+    const pad = 8;
     legendGroup.insert('rect', ':first-child')
-      .attr('x', contentBBox.x - bgPadX)
-      .attr('y', y0 - bgPadY)
-      .attr('width', contentBBox.width + bgPadX * 2)
-      .attr('height', bgHeight)
+      .attr('x', contentBBox.x - pad)
+      .attr('y', contentBBox.y - pad)
+      .attr('width', contentBBox.width + pad * 2)
+      .attr('height', contentBBox.height + pad * 2)
       .attr('rx', 4)
       .attr('fill', this.darkMode ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)')
       .attr('stroke', this.darkMode ? '#444' : '#dfe1e2')

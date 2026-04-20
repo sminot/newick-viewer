@@ -1,6 +1,5 @@
 node_modules/
 dist/
-dist-cirro/
 test-results/
 playwright-report/
 *.tsbuildinfo
