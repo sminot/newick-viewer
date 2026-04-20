@@ -54,7 +54,8 @@ export function computeRectangularLayout(
         if (ln) ln.parentY = y;
       }
 
-      for (const cp of childPositions) {
+      node.children.forEach((child, i) => {
+        const cp = childPositions[i];
         edges.push({
           sourceX: x,
           sourceY: y,
@@ -62,8 +63,9 @@ export function computeRectangularLayout(
           targetY: cp.y,
           elbowX: x,
           elbowY: cp.y,
+          targetNode: child,
         });
-      }
+      });
     }
 
     const ln: LayoutNode = { node, x, y, parentX, parentY };
@@ -133,14 +135,16 @@ export function computeRadialLayout(
         if (ln) { ln.parentX = x; ln.parentY = y; }
       }
 
-      for (const cr of childResults) {
+      node.children.forEach((child, i) => {
+        const cr = childResults[i];
         edges.push({
           sourceX: x,
           sourceY: y,
           targetX: cr.x,
           targetY: cr.y,
+          targetNode: child,
         });
-      }
+      });
     }
 
     const x = cx + radius * Math.cos(angle);

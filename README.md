@@ -148,6 +148,7 @@ url = make_tree_link(
 | `leafLabelSize` | number | `13` | Leaf label font size (px) |
 | `internalLabelSize` | number | `11` | Internal label font size (px) |
 | `legendLabelSize` | number | `11` | Legend label font size (px) |
+| `legendTitle` | str | `""` | Title displayed above the legend (empty = no title) |
 | `leafLabelColor` | str | `"#1b1b1b"` | CSS color for leaf labels |
 | `fontFamily` | str | system UI stack | Font family for all labels |
 | `showBranchLengths` | bool | `False` | Annotate branches with numeric lengths |

@@ -29,6 +29,8 @@ export interface LayoutEdge {
   /** For rectangular layout, the elbow Y coordinate */
   elbowX?: number;
   elbowY?: number;
+  /** Child node this edge leads to — used to match edges across re-renders for animation */
+  targetNode: TreeNode;
 }
 
 export interface LayoutResult {
@@ -55,6 +57,7 @@ export interface StyleOptions {
   leafLabelSize: number;
   internalLabelSize: number;
   legendLabelSize: number;
+  legendTitle: string;
   showBranchLengths: boolean;
   showInternalLabels: boolean;
   leafLabelColor: string;
@@ -92,6 +95,7 @@ export const DEFAULT_STYLE: StyleOptions = {
   leafLabelSize: 13,
   internalLabelSize: 11,
   legendLabelSize: 11,
+  legendTitle: '',
   showBranchLengths: false,
   showInternalLabels: false,
   leafLabelColor: '#1b1b1b',

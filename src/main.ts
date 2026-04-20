@@ -3,7 +3,7 @@ import { parseNewick, parseTreeInput, getLeafNames, getMaxBranchLength, toNewick
 import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
-import { ViewState, DEFAULT_STYLE, TreeNode } from './types';
+import { ViewState, DEFAULT_STYLE, TreeNode, LayoutResult } from './types';
 import { getStateFromURL, setStateInURL, getShareableURL, getEmbedURL, isEmbedMode, defaultViewState } from './state';
 import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
 import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './opentree';
@@ -269,7 +269,7 @@ function showPlaceholderIfEmpty(): void {
   }
 }
 
-function renderTree(): void {
+function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
   const viewer = document.getElementById('viewer')!;
 
   // Remove placeholder
@@ -345,20 +345,23 @@ function renderTree(): void {
         metadataTable: metadataTable,
         metadataIdColumn: metadataIdColumn,
         darkMode: state.darkMode,
-        onTreeEdit: (newRoot) => {
+        prevLayout: prevLayoutForAnimation ?? undefined,
+        onTreeEdit: (newRoot, action) => {
           pushUndo();
           const newick = toNewick(newRoot) + ';';
           state.newick1 = newick;
           syncTextarea('newick-input-1', newick);
-          // Full re-render (tree structure may have changed)
-          renderTree();
+          const isOrderChange = action === 'flip' || action === 'ladderize-desc' || action === 'ladderize-asc';
+          const prevLayout = isOrderChange ? (currentRenderer?.getCurrentLayout() ?? null) : null;
+          renderTree(prevLayout);
         },
       });
 
-      // Preserve zoom/pan for style-only changes; fit to view for new trees or layout switches
+      // Preserve zoom/pan for style-only changes or flip/ladderize; fit to view for new trees or layout switches
       const treeChanged = state.newick1 !== lastRenderedNewick;
       const layoutChanged = state.layout !== lastRenderedLayout;
-      if (prevTransform && hasRenderedOnce && !treeChanged && !layoutChanged) {
+      const preserveZoom = !!prevLayoutForAnimation || (hasRenderedOnce && !treeChanged && !layoutChanged);
+      if (prevTransform && preserveZoom) {
         currentRenderer.setTransform(prevTransform);
       } else {
         currentRenderer.fitToView(layout);
@@ -1097,6 +1100,12 @@ function buildControlsPanel(): void {
     debouncedRenderTree();
   });
 
+  // Legend title
+  addTextControl(panel, 'Legend title', state.style.legendTitle, (v) => {
+    state.style.legendTitle = v;
+    debouncedRenderTree();
+  });
+
   // Tree dimensions (auto checkbox + stepper)
   const viewer = document.getElementById('viewer')!;
   addDimensionControl(panel, 'Tree width', state.style.canvasWidth,
@@ -1284,9 +1293,6 @@ function addDimensionControl(
 
   function setDisabled(isAuto: boolean) {
     num.disabled = isAuto;
-    btnMinus.disabled = isAuto;
-    btnPlus.disabled = isAuto;
-    wrapper.classList.toggle('disabled', isAuto);
     if (isAuto) {
       num.value = String(Math.round(getAutoValue()));
     }
@@ -1307,16 +1313,23 @@ function addDimensionControl(
     setDisabled(autoCheck.checked);
   });
 
+  function uncheckAutoIfNeeded() {
+    if (autoCheck.checked) {
+      autoCheck.checked = false;
+      setDisabled(false);
+    }
+  }
+
   btnMinus.addEventListener('click', (e) => {
     e.preventDefault();
-    if (autoCheck.checked) return;
+    uncheckAutoIfNeeded();
     const v = Math.max(min, parseFloat(num.value) - step);
     num.value = String(v);
     onChange(v);
   });
   btnPlus.addEventListener('click', (e) => {
     e.preventDefault();
-    if (autoCheck.checked) return;
+    uncheckAutoIfNeeded();
     const v = Math.min(max, parseFloat(num.value) + step);
     num.value = String(v);
     onChange(v);
@@ -1371,6 +1384,26 @@ function addSelectControl(
   }
   select.addEventListener('change', () => onChange(select.value));
   row.append(span, select);
+  parent.appendChild(row);
+}
+
+function addTextControl(
+  parent: HTMLElement,
+  label: string,
+  value: string,
+  onChange: (v: string) => void
+): void {
+  const row = document.createElement('label');
+  row.className = 'sidebar-row';
+  const span = document.createElement('span');
+  span.textContent = label;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'sidebar-text-input';
+  input.value = value;
+  input.placeholder = 'None';
+  input.addEventListener('input', () => onChange(input.value));
+  row.append(span, input);
   parent.appendChild(row);
 }
 
