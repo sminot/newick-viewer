@@ -230,6 +230,14 @@ The viewer renders trees with hundreds of taxa comfortably. For very large trees
 
 Yes. Your tree data never leaves your browser. There is no server, no analytics, no tracking. The shareable URL contains the data itself (compressed), not a reference to a stored copy.
 
+## Citing this tool
+
+If you use Tree Viewer to generate a figure for a publication, you can adapt the following text for your methods section:
+
+> Phylogenetic trees were visualized using Tree Viewer (https://sminot.github.io/newick-viewer/), a free, browser-based tool for rendering Newick and NEXUS format trees.
+
+---
+
 ### How do I report problems or suggest improvements?
 
 Use the [GitHub Issues](https://github.com/sminot/newick-viewer/issues) page:
