@@ -140,6 +140,10 @@ function redo(): void {
   updateUndoRedoButtons();
 }
 
+function applyDarkMode(): void {
+  document.body.classList.toggle('dark-mode', !!state.darkMode);
+}
+
 function initEmbedMode(): void {
   document.body.classList.add('embed-mode');
 
@@ -149,6 +153,7 @@ function initEmbedMode(): void {
   const sidebar = document.getElementById('sidebar')!;
   sidebar.style.display = 'none';
 
+  applyDarkMode();
   renderTree();
 
   // Add "open in new tab" button overlay
@@ -184,6 +189,7 @@ function init(): void {
     return;
   }
 
+  applyDarkMode();
   buildToolbar();
   buildOpenTreePanel();
   buildInputPanel();
@@ -312,6 +318,7 @@ function renderTree(): void {
         style: state.style,
         tanglegramStyle: state.tanglegramStyle,
         tipColorMap: currentTipColorMap,
+        darkMode: state.darkMode,
         onNodeFlip: () => {
           pushUndo();
           syncTreeToTextarea(tree1, tree2);
@@ -337,6 +344,7 @@ function renderTree(): void {
         tipColorMap: currentTipColorMap,
         metadataTable: metadataTable,
         metadataIdColumn: metadataIdColumn,
+        darkMode: state.darkMode,
         onTreeEdit: (newRoot) => {
           pushUndo();
           const newick = toNewick(newRoot) + ';';
@@ -468,6 +476,21 @@ function buildToolbar(): void {
     sidebar.classList.toggle('collapsed');
   });
   toolbar.appendChild(btnSidebar);
+
+  // Dark/light mode toggle
+  const btnTheme = document.createElement('button');
+  btnTheme.className = 'btn-secondary';
+  btnTheme.textContent = state.darkMode ? '\u2600' : '\u263E'; // ☀ sun : ☾ moon
+  btnTheme.title = state.darkMode ? 'Switch to light mode' : 'Switch to dark mode';
+  btnTheme.style.fontSize = '16px';
+  btnTheme.addEventListener('click', () => {
+    state.darkMode = !state.darkMode;
+    applyDarkMode();
+    buildToolbar();
+    renderTree();
+    setStateInURL(state);
+  });
+  toolbar.appendChild(btnTheme);
 
   // Spacer pushes export actions to the right
   const spacer = document.createElement('div');

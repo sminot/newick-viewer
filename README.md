@@ -166,6 +166,21 @@ url = make_tree_link(
 | `connectionLineStyle` | str | `"solid"` | `"solid"`, `"dashed"`, or `"dotted"` |
 
 Missing fields fall back to defaults; unknown fields are ignored.
+### Can I generate share URLs programmatically?
+
+Yes. The hash is a JSON state object compressed with [lz-string](https://github.com/pieroxy/lz-string) (`compressToEncodedURIComponent`). Every field except `newick1` is optional — missing keys fall back to defaults — so a minimal URL only needs the tree string. In Python:
+
+```python
+# pip install lzstring
+import json, lzstring
+
+state = {"newick1": "((A:0.1,B:0.1):0.3,C:0.4);"}
+encoded = lzstring.LZString().compressToEncodedURIComponent(json.dumps(state))
+url = f"https://sminot.github.io/newick-viewer/#s={encoded}"
+print(url)
+```
+
+Optional keys include `newick2`, `layout` (`"rectangular"` or `"radial"`), `tanglegram` (bool), and the `style` / `tanglegramStyle` objects. See `src/types.ts` for the full shape.
 
 ### What export formats are available?
 

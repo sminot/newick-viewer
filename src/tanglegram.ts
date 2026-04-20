@@ -11,6 +11,14 @@ export interface TanglegramOptions {
   tanglegramStyle: TanglegramStyle;
   onNodeFlip?: () => void;
   tipColorMap?: TipColorMap | null;
+  darkMode?: boolean;
+}
+
+const DEFAULT_TREE_COLOR = '#1b1b1b';
+const DEFAULT_TREE_COLOR_DARK = '#e0e0e0';
+function themedColor(userValue: string, darkMode: boolean): string {
+  if (darkMode && userValue === DEFAULT_TREE_COLOR) return DEFAULT_TREE_COLOR_DARK;
+  return userValue;
 }
 
 /**
@@ -125,7 +133,7 @@ export class TanglegramRenderer {
         .attr('dy', '0.35em')
         .attr('font-size', fontSize + 'px')
         .attr('font-family', this.options.style.fontFamily)
-        .attr('fill', '#1b1b1b')
+        .attr('fill', this.options.darkMode ? '#e0e0e0' : '#1b1b1b')
         .text(item.category);
     });
 
@@ -139,8 +147,8 @@ export class TanglegramRenderer {
       .attr('width', contentBBox.width + bgPadX * 2)
       .attr('height', bgHeight)
       .attr('rx', 4)
-      .attr('fill', 'rgba(255,255,255,0.9)')
-      .attr('stroke', '#dfe1e2')
+      .attr('fill', this.options.darkMode ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)')
+      .attr('stroke', this.options.darkMode ? '#444' : '#dfe1e2')
       .attr('stroke-width', 1);
   }
 
@@ -156,11 +164,15 @@ export class TanglegramRenderer {
   ): Map<string, { x: number; y: number }> {
     const group = this.g.append('g').attr('class', `tree-${side}`);
 
+    const darkMode = !!this.options.darkMode;
+    const branchColor = themedColor(style.branchColor, darkMode);
+    const defaultLabelColor = themedColor(style.leafLabelColor, darkMode);
+
     // Tip color lookup
     const tcm = this.options.tipColorMap?.colorByTip;
     const tipColor = (name: string): string => {
-      if (!tcm) return style.leafLabelColor;
-      return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? style.leafLabelColor;
+      if (!tcm) return defaultLabelColor;
+      return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? defaultLabelColor;
     };
     const hasTipColors = tcm && tcm.size > 0;
 
@@ -177,7 +189,7 @@ export class TanglegramRenderer {
         return `M${d.sourceX},${d.sourceY} L${d.targetX},${d.targetY}`;
       })
       .attr('fill', 'none')
-      .attr('stroke', style.branchColor)
+      .attr('stroke', branchColor)
       .attr('stroke-width', style.branchWidth);
 
     // Leaf labels
@@ -226,7 +238,9 @@ export class TanglegramRenderer {
         .attr('stroke-width', 1)
         .attr('cursor', 'pointer')
         .on('mouseenter', function () {
-          d3.select(this).attr('fill', '#dfe1e2').attr('stroke', '#71767a');
+          const hoverFill = darkMode ? 'rgba(255,255,255,0.15)' : '#dfe1e2';
+          const hoverStroke = darkMode ? '#888' : '#71767a';
+          d3.select(this).attr('fill', hoverFill).attr('stroke', hoverStroke);
         })
         .on('mouseleave', function () {
           d3.select(this).attr('fill', 'transparent').attr('stroke', 'transparent');
