@@ -43,6 +43,39 @@ describe('parseCSV', () => {
     expect(table.rows).toHaveLength(2);
   });
 
+  it('handles old Mac line endings (\\r only)', () => {
+    const csv = 'name\tgroup\rA\tX\rB\tY';
+    const table = parseCSV(csv);
+    expect(table.headers).toEqual(['name', 'group']);
+    expect(table.rows).toHaveLength(2);
+    expect(table.rows[0].name).toBe('A');
+  });
+
+  it('strips UTF-8 BOM from start of file', () => {
+    const csv = '\uFEFFname,group\nA,X\nB,Y';
+    const table = parseCSV(csv);
+    expect(table.headers[0]).toBe('name');
+    expect(table.rows[0].name).toBe('A');
+  });
+
+  it('strips leading empty column (R-style row names in header)', () => {
+    // R write.table() with col.names=TRUE, row.names=TRUE produces a leading
+    // empty field in the header row
+    const tsv = '\tname\tgroup\nrow1\tA\tX\nrow2\tB\tY';
+    const table = parseCSV(tsv);
+    expect(table.headers).toEqual(['name', 'group']);
+    expect(table.rows[0].name).toBe('A');
+    expect(table.rows[0].group).toBe('X');
+  });
+
+  it('strips leading numeric row index from data rows when header has no leading empty', () => {
+    const tsv = 'name\tgroup\n1\tA\tX\n2\tB\tY';
+    const table = parseCSV(tsv);
+    expect(table.headers).toEqual(['name', 'group']);
+    expect(table.rows[0].name).toBe('A');
+    expect(table.rows[0].group).toBe('X');
+  });
+
   it('throws on header-only CSV', () => {
     expect(() => parseCSV('name,group')).toThrow('at least one data row');
   });
