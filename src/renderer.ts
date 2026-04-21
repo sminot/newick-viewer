@@ -491,6 +491,28 @@ export class TreeRenderer {
     if (this.layoutType === 'rectangular') {
       this.renderScaleBar(layout);
     }
+
+    // Figure title — rendered last so getBBox captures all other content
+    this.renderFigureTitle();
+  }
+
+  private renderFigureTitle(): void {
+    const titleText = this.style.figureTitle?.trim() ?? '';
+    if (!titleText) return;
+    const gNode = this.g.node();
+    if (!gNode) return;
+    const bbox = gNode.getBBox();
+    const fontSize = this.style.figureTitleSize;
+    this.g.append('text')
+      .attr('class', 'figure-title')
+      .attr('x', bbox.x + bbox.width / 2)
+      .attr('y', bbox.y - fontSize * 0.5)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', fontSize + 'px')
+      .attr('font-family', this.style.fontFamily)
+      .attr('font-weight', '700')
+      .attr('fill', this.darkMode ? '#e0e0e0' : '#1b1b1b')
+      .text(titleText);
   }
 
   private renderLegend(tcm: TipColorMap): void {

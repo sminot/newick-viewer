@@ -66,6 +66,8 @@ export interface StyleOptions {
   internalLabelSize: number;
   legendLabelSize: number;
   legendTitle: string;
+  figureTitle: string;
+  figureTitleSize: number;
   showBranchLengths: boolean;
   showInternalLabels: boolean;
   showLeafLabels: boolean;
@@ -110,6 +112,8 @@ export const DEFAULT_STYLE: StyleOptions = {
   internalLabelSize: 11,
   legendLabelSize: 11,
   legendTitle: '',
+  figureTitle: '',
+  figureTitleSize: 16,
   showBranchLengths: false,
   showInternalLabels: false,
   showLeafLabels: true,

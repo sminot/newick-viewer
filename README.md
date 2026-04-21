@@ -146,6 +146,8 @@ url = make_tree_link(
 |---|---|---|---|
 | `branchColor` | str | `"#1b1b1b"` | CSS color for branches |
 | `branchWidth` | number | `1.5` | Branch line width (px) |
+| `figureTitle` | str | `""` | Title displayed above the entire figure (empty = no title) |
+| `figureTitleSize` | number | `16` | Figure title font size (px) |
 | `leafLabelSize` | number | `13` | Leaf label font size (px) |
 | `internalLabelSize` | number | `11` | Internal label font size (px) |
 | `legendLabelSize` | number | `11` | Legend label font size (px) |

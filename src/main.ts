@@ -1154,6 +1154,21 @@ function buildControlsPanel(): void {
   h3.textContent = 'Display Settings';
   panel.appendChild(h3);
 
+  // Figure title
+  addTextControl(panel, 'Figure title', state.style.figureTitle, (v) => {
+    state.style.figureTitle = v;
+    debouncedRenderTree();
+  });
+
+  addRangeControl(panel, 'Title size (px)', state.style.figureTitleSize, 8, 48, 1, (v) => {
+    state.style.figureTitleSize = v;
+    debouncedRenderTree();
+  });
+
+  const figureSep = document.createElement('div');
+  figureSep.className = 'controls-separator';
+  panel.appendChild(figureSep);
+
   // Branch color
   addColorControl(panel, 'Branch color', state.style.branchColor, (v) => {
     state.style.branchColor = v;
