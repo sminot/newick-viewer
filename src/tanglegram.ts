@@ -99,11 +99,11 @@ export class TanglegramRenderer {
     const sw = tanglegramStyle.widthScaler ?? 0;
     const leftWidthFrac = Math.pow(2, sw) / (Math.pow(2, sw) + 1);
     const rawLeftWidth = treeSpace * leftWidthFrac;
-    // Clamp so neither tree drops below MIN_TREE_WIDTH.  When treeSpace itself is
-    // too narrow for two trees, give each half and accept the layout degradation.
-    const minWidth = Math.min(MIN_TREE_WIDTH, treeSpace / 2);
-    const leftTreeWidth = Math.min(Math.max(rawLeftWidth, minWidth), treeSpace - minWidth);
-    const rightTreeWidth = treeSpace - leftTreeWidth;
+    // Clamp so neither tree drops below MIN_TREE_WIDTH. If treeSpace is too narrow
+    // for two minimum-width trees, each tree overflows its half — the user can zoom
+    // out to see both, but the layout will never invert.
+    const leftTreeWidth = Math.max(MIN_TREE_WIDTH, Math.min(rawLeftWidth, treeSpace - MIN_TREE_WIDTH));
+    const rightTreeWidth = Math.max(MIN_TREE_WIDTH, treeSpace - leftTreeWidth);
 
     // Fold-change height balance: each tree gets an independent height
     const sh = tanglegramStyle.heightScaler ?? 0;
@@ -196,7 +196,6 @@ export class TanglegramRenderer {
     const bbox = gNode.getBBox();
     const legendMargin = 30;
     const x0 = bbox.x + bbox.width + legendMargin;
-    const y0 = bbox.y + 10;
     const fontSize = this.options.style.legendLabelSize;
     const rowHeight = fontSize + 6;
     const dotR = Math.max(3, Math.round(fontSize * 0.45));
