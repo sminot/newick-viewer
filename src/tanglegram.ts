@@ -200,8 +200,22 @@ export class TanglegramRenderer {
     const fontSize = this.options.style.legendLabelSize;
     const rowHeight = fontSize + 6;
     const dotR = Math.max(3, Math.round(fontSize * 0.45));
+    const titleText = this.options.style.legendTitle?.trim() ?? '';
+    const titleHeight = titleText ? fontSize + 8 : 0;
+    const y0 = bbox.y + 10 + titleHeight;
 
     const legendGroup = this.g.append('g').attr('class', 'legend');
+
+    if (titleText) {
+      legendGroup.append('text')
+        .attr('x', x0)
+        .attr('y', bbox.y + 10 + fontSize)
+        .attr('font-size', fontSize + 'px')
+        .attr('font-family', this.options.style.fontFamily)
+        .attr('font-weight', '600')
+        .attr('fill', this.options.darkMode ? '#e0e0e0' : '#1b1b1b')
+        .text(titleText);
+    }
 
     tcm.legend.forEach((item, i) => {
       const y = y0 + i * rowHeight + rowHeight / 2;
