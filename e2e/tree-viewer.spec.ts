@@ -86,8 +86,8 @@ test.describe('Style controls', () => {
 
     const initialWidth = await page.locator('path.branch').first().getAttribute('stroke-width');
 
-    const slider = page.locator('#controls-panel input[type="range"]').first();
-    await slider.fill('5');
+    const slider = page.locator('#controls-panel input[type="range"][min="0.5"]').first();
+    await slider.fill('3');
     await page.waitForTimeout(300);
 
     const newWidth = await page.locator('path.branch').first().getAttribute('stroke-width');
