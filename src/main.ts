@@ -1,5 +1,5 @@
 import './style.css';
-import { parseNewick, parseTreeInput, getLeafNames, getMaxBranchLength, toNewick } from './newick-parser';
+import { parseNewick, parseTreeInput, getLeafNames, getMaxBranchLength, toNewick, getLeafOrder, autoFlipTree } from './newick-parser';
 import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
@@ -1292,6 +1292,63 @@ function buildControlsPanel(): void {
         renderTree();
       }
     );
+
+    // Auto-align buttons
+    const alignSep = document.createElement('div');
+    alignSep.className = 'controls-separator';
+    panel.appendChild(alignSep);
+
+    const alignH3 = document.createElement('h3');
+    alignH3.textContent = 'Auto-align';
+    panel.appendChild(alignH3);
+
+    const alignDesc = document.createElement('div');
+    alignDesc.style.cssText = 'font-size:11px;color:var(--text-muted);margin-bottom:6px;';
+    alignDesc.textContent = 'Flip nodes to minimize connection crossings between shared taxa.';
+    panel.appendChild(alignDesc);
+
+    const alignRow = document.createElement('div');
+    alignRow.className = 'input-row';
+    alignRow.style.gap = '6px';
+
+    const btnAlignLeft = document.createElement('button');
+    btnAlignLeft.textContent = 'Align left \u2192 right';
+    btnAlignLeft.title = 'Flip nodes in the left tree to best match the right tree\'s leaf order';
+    btnAlignLeft.style.flex = '1';
+    btnAlignLeft.addEventListener('click', () => {
+      if (!state.newick1 || !state.newick2) return;
+      try {
+        const tree2 = parseTreeInput(state.newick2);
+        const refOrder = getLeafOrder(tree2);
+        const tree1 = parseTreeInput(state.newick1);
+        pushUndo();
+        autoFlipTree(tree1, refOrder);
+        state.newick1 = toNewick(tree1) + ';';
+        syncTextarea('newick-input-1', state.newick1);
+        renderTree();
+      } catch { /* ignore parse errors */ }
+    });
+
+    const btnAlignRight = document.createElement('button');
+    btnAlignRight.textContent = 'Align right \u2190 left';
+    btnAlignRight.title = 'Flip nodes in the right tree to best match the left tree\'s leaf order';
+    btnAlignRight.style.flex = '1';
+    btnAlignRight.addEventListener('click', () => {
+      if (!state.newick1 || !state.newick2) return;
+      try {
+        const tree1 = parseTreeInput(state.newick1);
+        const refOrder = getLeafOrder(tree1);
+        const tree2 = parseTreeInput(state.newick2);
+        pushUndo();
+        autoFlipTree(tree2, refOrder);
+        state.newick2 = toNewick(tree2) + ';';
+        syncTextarea('newick-input-2', state.newick2);
+        renderTree();
+      } catch { /* ignore parse errors */ }
+    });
+
+    alignRow.append(btnAlignLeft, btnAlignRight);
+    panel.appendChild(alignRow);
 
     // Tip label visibility per tree
     const labelSep = document.createElement('div');

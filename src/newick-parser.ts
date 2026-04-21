@@ -437,6 +437,60 @@ export function rerootAt(root: TreeNode, target: TreeNode): TreeNode {
   return target;
 }
 
+/**
+ * Return a map of leaf name → display position (0-based) for the given tree's
+ * current left-to-right leaf order. Used as a reference for autoFlipTree.
+ */
+export function getLeafOrder(root: TreeNode): Map<string, number> {
+  const order = new Map<string, number>();
+  let i = 0;
+  function walk(node: TreeNode): void {
+    if (node.children.length === 0) { order.set(node.name, i++); return; }
+    for (const child of node.children) walk(child);
+  }
+  walk(root);
+  return order;
+}
+
+/**
+ * Flip children of each internal node in `target` (bottom-up) to minimize
+ * crossings with a reference leaf order (from the other tanglegram tree).
+ *
+ * Uses the median heuristic: for each internal node, each child subtree is
+ * assigned the median rank of its shared leaves in the reference order, then
+ * children are sorted ascending by that median. This runs in O(N log N) and
+ * produces near-optimal crossing reduction in a single pass.
+ */
+export function autoFlipTree(target: TreeNode, referenceOrder: Map<string, number>): void {
+  function medianRank(node: TreeNode): number {
+    const ranks: number[] = [];
+    function collect(n: TreeNode): void {
+      if (n.children.length === 0) {
+        const r = referenceOrder.get(n.name)
+          ?? referenceOrder.get(n.name.replace(/_/g, ' '))
+          ?? referenceOrder.get(n.name.replace(/ /g, '_'));
+        if (r !== undefined) ranks.push(r);
+        return;
+      }
+      for (const child of n.children) collect(child);
+    }
+    collect(node);
+    if (ranks.length === 0) return Infinity;
+    ranks.sort((a, b) => a - b);
+    return ranks[Math.floor(ranks.length / 2)];
+  }
+
+  function optimize(node: TreeNode): void {
+    if (node.children.length === 0) return;
+    for (const child of node.children) optimize(child);
+    if (node.children.length > 1) {
+      node.children.sort((a, b) => medianRank(a) - medianRank(b));
+    }
+  }
+
+  optimize(target);
+}
+
 /** Sort children by descending leaf count (ladderize).
  *  Pre-computes leaf counts to avoid O(n²) from repeated traversals. */
 export function ladderize(node: TreeNode, ascending: boolean = false): void {
