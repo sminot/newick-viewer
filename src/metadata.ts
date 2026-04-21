@@ -9,6 +9,7 @@ export interface MetadataTable {
 
 export interface TipColorMap {
   colorByTip: Map<string, string>;  // tip name → hex color
+  categoryByTip: Map<string, string>;  // tip name → category name
   legend: { category: string; color: string }[];
   /** Display name override: tip ID → label to show in the tree */
   displayNameByTip?: Map<string, string>;
@@ -121,14 +122,18 @@ export function buildTipColorMap(
     categoryColorMap.set(cat, CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
   });
 
-  // Build tip → color map
+  // Build tip → color and tip → category maps
   const colorByTip = new Map<string, string>();
+  const categoryByTip = new Map<string, string>();
   for (const row of table.rows) {
     const tipId = row[idColumn];
     const cat = row[categoryColumn];
     if (tipId && cat) {
       const color = categoryColorMap.get(cat);
-      if (color) colorByTip.set(tipId, color);
+      if (color) {
+        colorByTip.set(tipId, color);
+        categoryByTip.set(tipId, cat);
+      }
     }
   }
 
@@ -150,40 +155,47 @@ export function buildTipColorMap(
     }
   }
 
-  return { colorByTip, legend, displayNameByTip };
+  return { colorByTip, categoryByTip, legend, displayNameByTip };
 }
 
 /** Re-assign palette colors to only the visible categories, starting from palette index 0.
  *  When a tree is pruned or filtered, this ensures visible categories use the most
- *  distinguishable colors rather than retaining their positions in the full palette. */
+ *  distinguishable colors rather than retaining their positions in the full palette.
+ *
+ *  Visibility is tracked by CATEGORY NAME (not color), so the result is correct even
+ *  when >10 categories cause the palette to wrap and two categories share a color. */
 export function recolorForVisibleTips(
   tcm: TipColorMap,
   visibleTipNames: Iterable<string>
 ): TipColorMap {
-  const usedColors = new Set<string>();
+  // Collect the set of visible category names by looking up each tip's category.
+  const visibleCategories = new Set<string>();
+  const catByTip = tcm.categoryByTip;
   for (const name of visibleTipNames) {
-    const color = tcm.colorByTip.get(name)
-      ?? tcm.colorByTip.get(name.replace(/_/g, ' '))
-      ?? tcm.colorByTip.get(name.replace(/ /g, '_'));
-    if (color) usedColors.add(color);
+    const cat = catByTip.get(name)
+      ?? catByTip.get(name.replace(/_/g, ' '))
+      ?? catByTip.get(name.replace(/ /g, '_'));
+    if (cat) visibleCategories.add(cat);
   }
 
-  const visibleLegend = tcm.legend.filter((item) => usedColors.has(item.color));
+  const visibleLegend = tcm.legend.filter((item) => visibleCategories.has(item.category));
   // All categories already visible — return unchanged (no recoloring needed)
   if (visibleLegend.length === tcm.legend.length) return tcm;
   // No visible tip matches any metadata entry — suppress legend entirely
   if (visibleLegend.length === 0) {
-    return { colorByTip: new Map(), legend: [], displayNameByTip: tcm.displayNameByTip };
+    return { colorByTip: new Map(), categoryByTip: new Map(), legend: [], displayNameByTip: tcm.displayNameByTip };
   }
 
-  const oldToNew = new Map<string, string>();
+  // Assign new palette colors to visible categories (starting from index 0).
+  const categoryToNewColor = new Map<string, string>();
   visibleLegend.forEach((item, i) => {
-    oldToNew.set(item.color, CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
+    categoryToNewColor.set(item.category, CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
   });
 
+  // Build new colorByTip from the category→newColor mapping (no color-collision risk).
   const newColorByTip = new Map<string, string>();
-  for (const [tip, oldColor] of tcm.colorByTip) {
-    const newColor = oldToNew.get(oldColor);
+  for (const [tip, cat] of catByTip) {
+    const newColor = categoryToNewColor.get(cat);
     if (newColor !== undefined) newColorByTip.set(tip, newColor);
   }
 
@@ -192,5 +204,5 @@ export function recolorForVisibleTips(
     color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
   }));
 
-  return { colorByTip: newColorByTip, legend: newLegend, displayNameByTip: tcm.displayNameByTip };
+  return { colorByTip: newColorByTip, categoryByTip: catByTip, legend: newLegend, displayNameByTip: tcm.displayNameByTip };
 }
