@@ -387,7 +387,10 @@ export class TreeRenderer {
     }
 
     // Leaf node dots (colored by metadata if available)
-    const hasTipColors = tcm && tcm.size > 0;
+    // Check whether any *visible* tip actually has a color (not just the full map)
+    const hasTipColors = tcm && tcm.size > 0 && leafNodes.some(
+      (n) => tcm.get(n.node.name) ?? tcm.get(n.node.name.replace(/_/g, ' ')) ?? tcm.get(n.node.name.replace(/ /g, '_'))
+    );
     const leafDotSel = nodeGroup.selectAll('circle.leaf-node')
       .data(leafNodes)
       .enter()

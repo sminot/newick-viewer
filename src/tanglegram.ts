@@ -266,8 +266,6 @@ export class TanglegramRenderer {
       if (!dnm) return name.replace(/_/g, ' ');
       return dnm.get(name) ?? dnm.get(name.replace(/_/g, ' ')) ?? dnm.get(name.replace(/ /g, '_')) ?? name.replace(/_/g, ' ');
     };
-    const hasTipColors = tcm && tcm.size > 0;
-
     // Root node (parentX === null)
     const root = layout.nodes.find((n) => n.parentX === null)!.node;
 
@@ -289,6 +287,9 @@ export class TanglegramRenderer {
 
     // Leaf labels
     const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
+    const hasTipColors = tcm && tcm.size > 0 && leafNodes.some(
+      (n) => tcm.get(n.node.name) ?? tcm.get(n.node.name.replace(/_/g, ' ')) ?? tcm.get(n.node.name.replace(/ /g, '_'))
+    );
 
     if (showLabels) {
       const labelSelection = group.selectAll('text.leaf-label')

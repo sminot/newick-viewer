@@ -169,8 +169,12 @@ export function recolorForVisibleTips(
   }
 
   const visibleLegend = tcm.legend.filter((item) => usedColors.has(item.color));
-  // No filtering needed if all categories visible, or none visible
-  if (visibleLegend.length === 0 || visibleLegend.length === tcm.legend.length) return tcm;
+  // All categories already visible — return unchanged (no recoloring needed)
+  if (visibleLegend.length === tcm.legend.length) return tcm;
+  // No visible tip matches any metadata entry — suppress legend entirely
+  if (visibleLegend.length === 0) {
+    return { colorByTip: new Map(), legend: [], displayNameByTip: tcm.displayNameByTip };
+  }
 
   const oldToNew = new Map<string, string>();
   visibleLegend.forEach((item, i) => {
