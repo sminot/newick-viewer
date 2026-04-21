@@ -20,6 +20,11 @@ function getSVGContent(container: HTMLElement): string | null {
     cloneGroup.removeAttribute('transform');
   }
 
+  // Remove interactive-only elements that have no meaning in a static SVG and
+  // whose fill="transparent" / stroke="transparent" attributes may render as
+  // opaque in some SVG viewers (Inkscape, Illustrator, macOS Preview).
+  clone.querySelectorAll('.node-target').forEach((el) => el.remove());
+
   // Use content bounding box to size the export (includes labels + legend)
   if (contentBBox) {
     const pad = 10;
