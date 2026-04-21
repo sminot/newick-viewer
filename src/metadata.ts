@@ -152,3 +152,41 @@ export function buildTipColorMap(
 
   return { colorByTip, legend, displayNameByTip };
 }
+
+/** Re-assign palette colors to only the visible categories, starting from palette index 0.
+ *  When a tree is pruned or filtered, this ensures visible categories use the most
+ *  distinguishable colors rather than retaining their positions in the full palette. */
+export function recolorForVisibleTips(
+  tcm: TipColorMap,
+  visibleTipNames: Iterable<string>
+): TipColorMap {
+  const usedColors = new Set<string>();
+  for (const name of visibleTipNames) {
+    const color = tcm.colorByTip.get(name)
+      ?? tcm.colorByTip.get(name.replace(/_/g, ' '))
+      ?? tcm.colorByTip.get(name.replace(/ /g, '_'));
+    if (color) usedColors.add(color);
+  }
+
+  const visibleLegend = tcm.legend.filter((item) => usedColors.has(item.color));
+  // No filtering needed if all categories visible, or none visible
+  if (visibleLegend.length === 0 || visibleLegend.length === tcm.legend.length) return tcm;
+
+  const oldToNew = new Map<string, string>();
+  visibleLegend.forEach((item, i) => {
+    oldToNew.set(item.color, CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
+  });
+
+  const newColorByTip = new Map<string, string>();
+  for (const [tip, oldColor] of tcm.colorByTip) {
+    const newColor = oldToNew.get(oldColor);
+    if (newColor !== undefined) newColorByTip.set(tip, newColor);
+  }
+
+  const newLegend = visibleLegend.map((item, i) => ({
+    category: item.category,
+    color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+  }));
+
+  return { colorByTip: newColorByTip, legend: newLegend, displayNameByTip: tcm.displayNameByTip };
+}

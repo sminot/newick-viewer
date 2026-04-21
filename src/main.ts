@@ -77,15 +77,24 @@ let metadataIdColumn: string = '';
 let metadataNameColumn: string = '';
 let metadataCategoryColumn: string = '';
 
+function quoteCSVField(val: string): string {
+  if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
+    return '"' + val.replace(/"/g, '""') + '"';
+  }
+  return val;
+}
+
 /** Sync metadata fields into the persisted ViewState */
 function syncMetadataToState(): void {
   if (metadataTable) {
-    // Re-serialize from the parsed table to get clean CSV
-    const rows = metadataTable.rows.map(r => metadataTable!.headers.map(h => r[h] ?? '').join(','));
-    state.metadata = [metadataTable.headers.join(','), ...rows].join('\n');
-    state.metadataIdCol = metadataIdColumn;
+    const rows = metadataTable.rows.map((r) =>
+      metadataTable!.headers.map((h) => quoteCSVField(r[h] ?? '')).join(',')
+    );
+    state.metadata = [metadataTable.headers.map(quoteCSVField).join(','), ...rows].join('\n');
+    // Use || undefined so empty string falls back to undefined (safe ?? fallback on load)
+    state.metadataIdCol = metadataIdColumn || undefined;
     state.metadataNameCol = metadataNameColumn || undefined;
-    state.metadataCatCol = metadataCategoryColumn;
+    state.metadataCatCol = metadataCategoryColumn || undefined;
   } else {
     state.metadata = undefined;
     state.metadataIdCol = undefined;
@@ -184,9 +193,10 @@ function init(): void {
   if (state.metadata) {
     try {
       metadataTable = parseCSV(state.metadata);
-      metadataIdColumn = state.metadataIdCol ?? metadataTable.headers[0] ?? '';
-      metadataNameColumn = state.metadataNameCol ?? '';
-      metadataCategoryColumn = state.metadataCatCol ?? metadataTable.headers[1] ?? '';
+      // Use || instead of ?? so empty strings also fall back to the header default
+      metadataIdColumn = state.metadataIdCol || metadataTable.headers[0] || '';
+      metadataNameColumn = state.metadataNameCol || '';
+      metadataCategoryColumn = state.metadataCatCol || metadataTable.headers[1] || '';
       if (metadataTable.headers.length >= 2) {
         currentTipColorMap = buildTipColorMap(metadataTable, metadataIdColumn, metadataCategoryColumn, metadataNameColumn || undefined);
       }
@@ -532,6 +542,7 @@ function buildToolbar(): void {
   btnCopy.textContent = 'Copy link';
   btnCopy.title = 'Copy shareable URL to clipboard';
   btnCopy.addEventListener('click', () => {
+    syncMetadataToState();
     const url = getShareableURL(state);
     navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard'));
   });
@@ -542,6 +553,7 @@ function buildToolbar(): void {
   btnEmbed.className = 'btn-secondary';
   btnEmbed.title = 'Copy embeddable HTML iframe snippet';
   btnEmbed.addEventListener('click', () => {
+    syncMetadataToState();
     const url = getEmbedURL(state);
     const snippet = `<iframe src="${url}" width="800" height="600" frameborder="0" style="border:1px solid #dfe1e2;border-radius:4px;"></iframe>`;
     navigator.clipboard.writeText(snippet).then(() => showToast('Embed code copied to clipboard'));

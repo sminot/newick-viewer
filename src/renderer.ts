@@ -2,6 +2,7 @@ import * as d3 from 'd3';
 import { LayoutResult, LayoutNode, LayoutEdge, StyleOptions, LayoutType, TreeNode, TreeEditAction } from './types';
 import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
 import type { TipColorMap, MetadataTable } from './metadata';
+import { recolorForVisibleTips } from './metadata';
 
 function isTouchDevice(): boolean {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -260,9 +261,14 @@ export class TreeRenderer {
     const leafNodes = layout.nodes.filter((n) => n.node.children.length === 0);
     const internalNodes = layout.nodes.filter((n) => n.node.children.length > 0);
 
+    // Recolor for only the visible leaves so filtered trees use the most distinguishable colors
+    const activeTcm = this.tipColorMap
+      ? recolorForVisibleTips(this.tipColorMap, leafNodes.map((n) => n.node.name))
+      : null;
+
     // Tip color lookup: check both raw name and underscore-to-space variants
-    const tcm = this.tipColorMap?.colorByTip;
-    const dnm = this.tipColorMap?.displayNameByTip;
+    const tcm = activeTcm?.colorByTip;
+    const dnm = activeTcm?.displayNameByTip;
     const defaultLabelColor = themedColor(this.style.leafLabelColor, this.darkMode);
     const tipColor = (name: string): string => {
       if (!tcm) return defaultLabelColor;
@@ -399,8 +405,8 @@ export class TreeRenderer {
     }
 
     // Legend (when tip colors are active)
-    if (hasTipColors && this.tipColorMap?.legend) {
-      this.renderLegend();
+    if (hasTipColors && activeTcm?.legend.length) {
+      this.renderLegend(activeTcm);
     }
 
     // Interactive node hit targets (always at final positions — no animation)
@@ -484,22 +490,10 @@ export class TreeRenderer {
     }
   }
 
-  private renderLegend(): void {
-    if (!this.tipColorMap?.legend.length) return;
+  private renderLegend(tcm: TipColorMap): void {
+    // tcm is already filtered to visible categories and recolored by the caller
+    if (!tcm.legend.length) return;
 
-    // Filter legend to categories present in the currently-visible leaves
-    const tcm = this.tipColorMap;
-    const visibleLeaves = this.currentLayout?.nodes.filter((n) => n.node.children.length === 0) ?? [];
-    const usedColors = new Set<string>();
-    for (const n of visibleLeaves) {
-      const name = n.node.name;
-      const color = tcm.colorByTip.get(name) ?? tcm.colorByTip.get(name.replace(/_/g, ' ')) ?? tcm.colorByTip.get(name.replace(/ /g, '_'));
-      if (color) usedColors.add(color);
-    }
-    const visibleLegend = tcm.legend.filter((item) => usedColors.has(item.color));
-    if (!visibleLegend.length) return;
-
-    // Use the bounding box of the existing tree content to place legend to the right
     const svgNode = this.g.node();
     if (!svgNode) return;
     const bbox = svgNode.getBBox();
@@ -514,7 +508,6 @@ export class TreeRenderer {
 
     const legendGroup = this.g.append('g').attr('class', 'legend');
 
-    // Optional title above items
     if (titleText) {
       legendGroup.append('text')
         .attr('x', x0)
@@ -526,8 +519,7 @@ export class TreeRenderer {
         .text(titleText);
     }
 
-    // Render dots and labels
-    visibleLegend.forEach((item, i) => {
+    tcm.legend.forEach((item, i) => {
       const y = y0 + i * rowHeight + rowHeight / 2;
       legendGroup.append('circle')
         .attr('cx', x0)
@@ -545,16 +537,17 @@ export class TreeRenderer {
         .text(item.category);
     });
 
-    // Measure actual content and insert background with equal padding on all sides
     const contentBBox = legendGroup.node()!.getBBox();
     const pad = 8;
+    // Use fill + fill-opacity instead of rgba() for SVG viewer compatibility
     legendGroup.insert('rect', ':first-child')
       .attr('x', contentBBox.x - pad)
       .attr('y', contentBBox.y - pad)
       .attr('width', contentBBox.width + pad * 2)
       .attr('height', contentBBox.height + pad * 2)
       .attr('rx', 4)
-      .attr('fill', this.darkMode ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)')
+      .attr('fill', this.darkMode ? '#1e1e1e' : '#ffffff')
+      .attr('fill-opacity', 0.9)
       .attr('stroke', this.darkMode ? '#444' : '#dfe1e2')
       .attr('stroke-width', 1);
   }

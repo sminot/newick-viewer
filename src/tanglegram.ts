@@ -3,6 +3,7 @@ import { TreeNode, LayoutResult, LayoutEdge, StyleOptions, TanglegramStyle, Tree
 import { computeLayout, RECT_MARGIN_LEFT, RECT_MARGIN_RIGHT, RECT_MARGIN_TOP, RECT_MARGIN_BOTTOM } from './layout';
 import { pruneNode, extractSubtree, rerootAt, ladderize } from './newick-parser';
 import type { TipColorMap, MetadataTable } from './metadata';
+import { recolorForVisibleTips } from './metadata';
 
 export interface TanglegramOptions {
   container: HTMLElement;
@@ -160,11 +161,19 @@ export class TanglegramRenderer {
       if (edge.elbowY !== undefined) edge.elbowY += yOffset;
     }
 
+    // Recolor for visible categories across both trees for best palette distinguishability
+    const rawTcm = this.options.tipColorMap;
+    let activeTcm: TipColorMap | null = null;
+    if (rawTcm && rawTcm.colorByTip.size > 0) {
+      const allLeafNames = [...leftLeafY.keys(), ...rightLeafY.keys()];
+      activeTcm = recolorForVisibleTips(rawTcm, allLeafNames);
+    }
+
     // Draw left tree, capture label end positions
-    const leftLabelEnds = this.drawTree(layout1, style, 'left', 1, tanglegramStyle.showLeafLabels1);
+    const leftLabelEnds = this.drawTree(layout1, style, 'left', 1, tanglegramStyle.showLeafLabels1, activeTcm);
 
     // Draw right tree, capture label end positions
-    const rightLabelEnds = this.drawTree(layout2, style, 'right', 2, tanglegramStyle.showLeafLabels2);
+    const rightLabelEnds = this.drawTree(layout2, style, 'right', 2, tanglegramStyle.showLeafLabels2, activeTcm);
 
     // Scale bars (rectangular layout has branch lengths)
     this.renderScaleBar(layout1, 'left', style);
@@ -173,17 +182,9 @@ export class TanglegramRenderer {
     // Draw connecting lines between matching leaves
     this.drawConnections(leftLabelEnds, rightLabelEnds, tanglegramStyle);
 
-    // Color legend — filter to categories visible in either tree
-    const tcm = this.options.tipColorMap;
-    if (tcm && tcm.colorByTip.size > 0 && tcm.legend.length > 0) {
-      const allLeafNames = [...leftLeafY.keys(), ...rightLeafY.keys()];
-      const usedColors = new Set<string>();
-      for (const name of allLeafNames) {
-        const color = tcm.colorByTip.get(name) ?? tcm.colorByTip.get(name.replace(/_/g, ' ')) ?? tcm.colorByTip.get(name.replace(/ /g, '_'));
-        if (color) usedColors.add(color);
-      }
-      const visibleLegend = tcm.legend.filter((item) => usedColors.has(item.color));
-      if (visibleLegend.length > 0) this.renderLegend({ ...tcm, legend: visibleLegend });
+    // Color legend — already filtered and recolored in activeTcm
+    if (activeTcm && activeTcm.legend.length > 0) {
+      this.renderLegend(activeTcm);
     }
 
     document.addEventListener('click', this.dismissContextMenuBound);
@@ -228,7 +229,8 @@ export class TanglegramRenderer {
       .attr('width', contentBBox.width + pad * 2)
       .attr('height', contentBBox.height + pad * 2)
       .attr('rx', 4)
-      .attr('fill', this.options.darkMode ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)')
+      .attr('fill', this.options.darkMode ? '#1e1e1e' : '#ffffff')
+      .attr('fill-opacity', 0.9)
       .attr('stroke', this.options.darkMode ? '#444' : '#dfe1e2')
       .attr('stroke-width', 1);
   }
@@ -243,7 +245,8 @@ export class TanglegramRenderer {
     style: StyleOptions,
     side: 'left' | 'right',
     treeIndex: 1 | 2,
-    showLabels: boolean
+    showLabels: boolean,
+    activeTcm: TipColorMap | null
   ): Map<string, { x: number; y: number }> {
     const group = this.g.append('g').attr('class', `tree-${side}`);
 
@@ -252,9 +255,9 @@ export class TanglegramRenderer {
     const defaultLabelColor = themedColor(style.leafLabelColor, darkMode);
     const self = this;
 
-    // Tip color lookup
-    const tcm = this.options.tipColorMap?.colorByTip;
-    const dnm = this.options.tipColorMap?.displayNameByTip;
+    // Tip color lookup (uses recolored map from caller)
+    const tcm = activeTcm?.colorByTip;
+    const dnm = activeTcm?.displayNameByTip;
     const tipColor = (name: string): string => {
       if (!tcm) return defaultLabelColor;
       return tcm.get(name) ?? tcm.get(name.replace(/_/g, ' ')) ?? tcm.get(name.replace(/ /g, '_')) ?? defaultLabelColor;
