@@ -4,7 +4,7 @@ import { computeLayout } from './layout';
 import { TreeRenderer } from './renderer';
 import { TanglegramRenderer } from './tanglegram';
 import { ViewState, DEFAULT_STYLE, TreeNode, LayoutResult } from './types';
-import { getStateFromURL, setStateInURL, getShareableURL, getEmbedURL, isEmbedMode, defaultViewState } from './state';
+import { getStateFromURL, getStateParam, setStateInURL, getShareableURL, getEmbedURL, isEmbedMode, defaultViewState } from './state';
 import { exportStandaloneHTML, exportPDF, exportSVG } from './export';
 import { autocompleteName, matchNames, getInducedSubtree, getSubtree } from './opentree';
 import { parseCSV, buildTipColorMap, MetadataTable, TipColorMap } from './metadata';
@@ -197,9 +197,23 @@ function initEmbedMode(): void {
   ro.observe(viewer);
 }
 
+function showUrlDecodeError(): void {
+  const viewer = document.getElementById('viewer')!;
+  viewer.querySelectorAll('svg, .viewer-message').forEach((el) => el.remove());
+  const msg = document.createElement('div');
+  msg.className = 'viewer-message';
+  msg.innerHTML = `
+    <div style="color: #c0392b; font-weight: 600;">Failed to load shared link</div>
+    <div class="hint">The URL contains state data that could not be decoded.<br>It may be truncated or corrupted.</div>
+  `;
+  viewer.appendChild(msg);
+}
+
 function init(): void {
-  // Try to restore state from URL
-  state = getStateFromURL() ?? defaultViewState();
+  // Try to restore state from URL; distinguish missing param from corrupt data
+  const stateFromURL = getStateFromURL();
+  const urlDecodeError = stateFromURL === null && getStateParam() !== null;
+  state = stateFromURL ?? defaultViewState();
 
   // Restore metadata from URL state
   if (state.metadata) {
@@ -217,6 +231,7 @@ function init(): void {
 
   if (isEmbedMode()) {
     initEmbedMode();
+    if (urlDecodeError) showUrlDecodeError();
     return;
   }
 
@@ -228,6 +243,7 @@ function init(): void {
   buildControlsPanel();
   setupDragDrop();
   renderTree();
+  if (urlDecodeError) showUrlDecodeError();
 
   // Debounced resize handler
   const viewer = document.getElementById('viewer')!;

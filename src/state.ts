@@ -35,11 +35,15 @@ export function decodeState(encoded: string): ViewState | null {
   }
 }
 
+/** Return the raw encoded state param from the URL hash, or null if absent */
+export function getStateParam(): string | null {
+  const hash = window.location.hash.slice(1);
+  return new URLSearchParams(hash).get(STATE_PARAM);
+}
+
 /** Get view state from the current URL hash */
 export function getStateFromURL(): ViewState | null {
-  const hash = window.location.hash.slice(1); // Remove '#'
-  const params = new URLSearchParams(hash);
-  const encoded = params.get(STATE_PARAM);
+  const encoded = getStateParam();
   if (!encoded) return null;
   return decodeState(encoded);
 }

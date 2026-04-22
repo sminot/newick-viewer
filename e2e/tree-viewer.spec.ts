@@ -102,6 +102,11 @@ test.describe('Error handling', () => {
     // Wait for debounced render to attempt and fail
     await expect(page.locator('.error-message')).toBeVisible({ timeout: 5000 });
   });
+
+  test('shows error when URL state param cannot be decoded', async ({ page }) => {
+    await page.goto('/#s=NOTVALIDBASE64!!!');
+    await expect(page.locator('.viewer-message')).toContainText('Failed to load shared link');
+  });
 });
 
 test.describe('Tanglegram mode', () => {
