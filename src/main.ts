@@ -69,6 +69,7 @@ let lastExampleIndex = -1;
 let state: ViewState;
 let currentRenderer: TreeRenderer | null = null;
 let currentTanglegram: TanglegramRenderer | null = null;
+let boxSelectMode = false;
 
 // Metadata state
 let metadataTable: MetadataTable | null = null;
@@ -370,6 +371,7 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
         metadataTable: metadataTable,
         metadataIdColumn: metadataIdColumn,
         darkMode: state.darkMode,
+        boxSelectMode: boxSelectMode,
         onNodeEdit: (newRoot, _action, treeIndex) => {
           pushUndo();
           currentTanglegram!.updateTree(treeIndex, newRoot);
@@ -408,6 +410,7 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
         metadataIdColumn: metadataIdColumn,
         darkMode: state.darkMode,
         prevLayout: prevLayoutForAnimation ?? undefined,
+        boxSelectMode: boxSelectMode,
         onTreeEdit: (newRoot, action) => {
           pushUndo();
           const newick = toNewick(newRoot) + ';';
@@ -416,6 +419,13 @@ function renderTree(prevLayoutForAnimation: LayoutResult | null = null): void {
           const isOrderChange = action === 'flip' || action === 'ladderize-desc' || action === 'ladderize-asc';
           const prevLayout = isOrderChange ? (currentRenderer?.getCurrentLayout() ?? null) : null;
           renderTree(prevLayout);
+        },
+        onBulkDelete: (newRoot) => {
+          pushUndo();
+          const newick = toNewick(newRoot) + ';';
+          state.newick1 = newick;
+          syncTextarea('newick-input-1', newick);
+          renderTree();
         },
       });
 
@@ -532,6 +542,49 @@ function buildToolbar(): void {
 
   undoRedoGroup.append(btnUndo, btnRedo);
   toolbar.appendChild(undoRedoGroup);
+
+  addSeparator(toolbar);
+
+  // Pan / lasso-select mode toggle
+  const modeGroup = document.createElement('div');
+  modeGroup.className = 'toolbar-group';
+
+  // Pan: four-directional move arrows (stroke-based, clear at small sizes)
+  const panIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/></svg>`;
+
+  // Select: dashed rectangle (classic marquee selection tool icon)
+  const boxSelectIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="5 3"/></svg>`;
+
+  const btnPan = document.createElement('button');
+  btnPan.className = !boxSelectMode ? 'active' : '';
+  btnPan.innerHTML = panIcon;
+  btnPan.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:5px 8px';
+  btnPan.title = 'Pan mode — drag to move';
+  btnPan.addEventListener('click', () => {
+    if (boxSelectMode) {
+      boxSelectMode = false;
+      currentRenderer?.setBoxSelectMode(false);
+      currentTanglegram?.setBoxSelectMode(false);
+      buildToolbar();
+    }
+  });
+
+  const btnBoxSelect = document.createElement('button');
+  btnBoxSelect.className = boxSelectMode ? 'active' : '';
+  btnBoxSelect.innerHTML = boxSelectIcon;
+  btnBoxSelect.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:5px 8px';
+  btnBoxSelect.title = 'Box select mode — drag to select nodes for deletion';
+  btnBoxSelect.addEventListener('click', () => {
+    if (!boxSelectMode) {
+      boxSelectMode = true;
+      currentRenderer?.setBoxSelectMode(true);
+      currentTanglegram?.setBoxSelectMode(true);
+      buildToolbar();
+    }
+  });
+
+  modeGroup.append(btnPan, btnBoxSelect);
+  toolbar.appendChild(modeGroup);
 
   // Sidebar toggle
   const btnSidebar = document.createElement('button');

@@ -4,6 +4,7 @@ import {
   toNewick,
   getLeafNames,
   pruneNode,
+  pruneNodes,
   extractSubtree,
   rerootAt,
   ladderize,
@@ -62,6 +63,45 @@ describe('pruneNode', () => {
     if (bLeaf) {
       expect(bLeaf.branchLength).toBeCloseTo(0.2);
     }
+  });
+});
+
+describe('pruneNodes', () => {
+  it('removes multiple leaves at once', () => {
+    const tree = parseNewick('(A,B,C,D);');
+    const result = pruneNodes(tree, [tree.children[0], tree.children[2]]); // remove A and C
+    expect(getLeafNames(result)).toEqual(['B', 'D']);
+  });
+
+  it('collapses internal nodes when all siblings pruned', () => {
+    const tree = parseNewick('((A,B),C);');
+    const leafA = tree.children[0].children[0];
+    const leafB = tree.children[0].children[1];
+    const result = pruneNodes(tree, [leafA, leafB]);
+    // After A and B are pruned, (A,B) parent collapses → only C remains
+    expect(getLeafNames(result)).toEqual(['C']);
+  });
+
+  it('safely skips nodes that no longer exist after earlier prunes', () => {
+    const tree = parseNewick('((A,B),C);');
+    const inner = tree.children[0]; // (A,B)
+    const leafA = inner.children[0];
+    // Prune inner node then try to prune A (already gone)
+    const result = pruneNodes(tree, [inner, leafA]);
+    expect(getLeafNames(result)).toContain('C');
+  });
+
+  it('always returns a valid tree, never null', () => {
+    const tree = parseNewick('(A,B);');
+    const result = pruneNodes(tree, [tree.children[0]]);
+    expect(result).toBeTruthy();
+    expect(getLeafNames(result)).toEqual(['B']);
+  });
+
+  it('skips the root when included in targets', () => {
+    const tree = parseNewick('(A,B,C);');
+    const result = pruneNodes(tree, [tree, tree.children[0]]); // root is skipped
+    expect(getLeafNames(result)).toEqual(['B', 'C']);
   });
 });
 

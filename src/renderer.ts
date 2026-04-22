@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 import { LayoutResult, LayoutNode, LayoutEdge, StyleOptions, LayoutType, TreeNode, TreeEditAction } from './types';
-import { pruneNode, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
+import { pruneNode, pruneNodes, extractSubtree, rerootAt, ladderize, toNewick } from './newick-parser';
 import type { TipColorMap, MetadataTable } from './metadata';
 import { recolorForVisibleTips } from './metadata';
 
@@ -23,7 +23,9 @@ export interface RendererOptions {
   style: StyleOptions;
   layoutType: LayoutType;
   onTreeEdit?: (newRoot: TreeNode, action: TreeEditAction) => void;
+  onBulkDelete?: (newRoot: TreeNode) => void;
   root?: TreeNode;
+  boxSelectMode?: boolean;
   /** Optional tip color map from CSV metadata */
   tipColorMap?: TipColorMap | null;
   /** Full metadata table for tooltips */
@@ -60,6 +62,15 @@ export class TreeRenderer {
   private metadataIdColumn?: string;
   private tooltip: HTMLElement | null = null;
   private darkMode: boolean = false;
+  private boxSelectMode: boolean = false;
+  private selectedNodes: Set<TreeNode> = new Set();
+  private onBulkDelete?: (newRoot: TreeNode) => void;
+  private boxSelectStart: { svgX: number; svgY: number } | null = null;
+  private boxSelectRectEl: d3.Selection<SVGRectElement, unknown, null, undefined> | null = null;
+  private onSvgMouseDownBound = (e: MouseEvent) => this.onSvgBoxSelectMouseDown(e);
+  private onWindowMouseMoveBound = (e: MouseEvent) => this.onBoxSelectMouseMove(e);
+  private onWindowMouseUpBound = (e: MouseEvent) => this.onBoxSelectMouseUp(e);
+  private onKeyDownBound = (e: KeyboardEvent) => this.onBoxSelectKeyDown(e);
   private dismissContextMenuBound = () => this.dismissContextMenu();
 
   constructor(private options: RendererOptions) {
@@ -72,6 +83,8 @@ export class TreeRenderer {
     this.metadataTable = options.metadataTable;
     this.metadataIdColumn = options.metadataIdColumn;
     this.darkMode = !!options.darkMode;
+    this.onBulkDelete = options.onBulkDelete;
+    this.boxSelectMode = !!options.boxSelectMode;
     this.init();
     this.render(options.layout, options.prevLayout);
   }
@@ -93,7 +106,41 @@ export class TreeRenderer {
         this.g.attr('transform', event.transform);
       });
 
+    // Dynamic zoom filter: block drag-to-pan in lasso mode, always allow wheel
+    this.zoom.filter((event: Event) => {
+      if (this.boxSelectMode) return event.type === 'wheel';
+      const me = event as MouseEvent;
+      return !me.ctrlKey && !me.button;
+    });
+
     this.svg.call(this.zoom);
+
+    // Lasso selection rect (drawn in SVG viewport space, above the tree group)
+    this.boxSelectRectEl = this.svg.append('rect')
+      .attr('class', 'box-select-rect')
+      .attr('fill', 'rgba(0,94,162,0.07)')
+      .attr('stroke', '#005ea2')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '5,3')
+      .attr('pointer-events', 'none')
+      .attr('display', 'none');
+
+    // Lasso drag listeners (capture phase fires before d3-zoom handlers)
+    this.svg.node()!.addEventListener('mousedown', this.onSvgMouseDownBound, true);
+    window.addEventListener('mousemove', this.onWindowMouseMoveBound);
+    window.addEventListener('mouseup', this.onWindowMouseUpBound);
+    document.addEventListener('keydown', this.onKeyDownBound);
+
+    // Right-click on SVG background shows bulk-delete menu when nodes are selected
+    this.svg.on('contextmenu.boxselect', (event: MouseEvent) => {
+      if (!this.boxSelectMode || this.selectedNodes.size === 0) return;
+      event.preventDefault();
+      this.showBulkContextMenu(event.clientX, event.clientY);
+    });
+
+    if (this.boxSelectMode) {
+      this.svg.style('cursor', 'crosshair');
+    }
 
     // Add zoom controls overlay
     this.addZoomControls();
@@ -453,6 +500,12 @@ export class TreeRenderer {
         .on('contextmenu', function (event, d) {
           event.preventDefault();
           event.stopPropagation();
+          if (self.boxSelectMode) {
+            if (self.selectedNodes.size > 0) {
+              self.showBulkContextMenu(event.clientX, event.clientY);
+            }
+            return;
+          }
           self.showContextMenu(event.clientX, event.clientY, d.node, root);
         })
         .each(function (d) {
@@ -876,10 +929,142 @@ export class TreeRenderer {
     this.onTreeEdit(newRoot, action);
   }
 
+  setBoxSelectMode(enabled: boolean): void {
+    this.boxSelectMode = enabled;
+    if (enabled) {
+      this.svg.style('cursor', 'crosshair');
+    } else {
+      this.svg.node()!.style.removeProperty('cursor');
+    }
+    if (!enabled) {
+      this.selectedNodes.clear();
+      this.updateNodeHighlights();
+      this.boxSelectStart = null;
+      this.boxSelectRectEl?.attr('display', 'none');
+      this.dismissContextMenu();
+    }
+  }
+
+  private getSvgPos(e: MouseEvent): { x: number; y: number } {
+    const rect = this.svg.node()!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  private onSvgBoxSelectMouseDown(e: MouseEvent): void {
+    if (!this.boxSelectMode || e.button !== 0) return;
+    e.preventDefault();
+    this.dismissContextMenu();
+    const pos = this.getSvgPos(e);
+    this.boxSelectStart = { svgX: pos.x, svgY: pos.y };
+    this.boxSelectRectEl?.attr('display', null)
+      .attr('x', pos.x).attr('y', pos.y)
+      .attr('width', 0).attr('height', 0);
+  }
+
+  private onBoxSelectMouseMove(e: MouseEvent): void {
+    if (!this.boxSelectMode || !this.boxSelectStart) return;
+    const pos = this.getSvgPos(e);
+    const x0 = Math.min(this.boxSelectStart.svgX, pos.x);
+    const y0 = Math.min(this.boxSelectStart.svgY, pos.y);
+    this.boxSelectRectEl
+      ?.attr('x', x0).attr('y', y0)
+      .attr('width', Math.abs(pos.x - this.boxSelectStart.svgX))
+      .attr('height', Math.abs(pos.y - this.boxSelectStart.svgY));
+  }
+
+  private onBoxSelectMouseUp(e: MouseEvent): void {
+    if (!this.boxSelectMode || !this.boxSelectStart || !this.currentLayout) return;
+    const pos = this.getSvgPos(e);
+    const dx = Math.abs(pos.x - this.boxSelectStart.svgX);
+    const dy = Math.abs(pos.y - this.boxSelectStart.svgY);
+    const start = this.boxSelectStart;
+    this.boxSelectStart = null;
+    this.boxSelectRectEl?.attr('display', 'none');
+
+    if (dx < 4 && dy < 4) {
+      if (!e.shiftKey) {
+        this.selectedNodes.clear();
+        this.updateNodeHighlights();
+      }
+      return;
+    }
+
+    const t = d3.zoomTransform(this.svg.node()!);
+    const [tx0, ty0] = t.invert([Math.min(start.svgX, pos.x), Math.min(start.svgY, pos.y)]);
+    const [tx1, ty1] = t.invert([Math.max(start.svgX, pos.x), Math.max(start.svgY, pos.y)]);
+
+    if (!e.shiftKey) this.selectedNodes = new Set();
+    for (const ln of this.currentLayout.nodes) {
+      if (ln.x >= tx0 && ln.x <= tx1 && ln.y >= ty0 && ln.y <= ty1) {
+        this.selectedNodes.add(ln.node);
+      }
+    }
+    this.updateNodeHighlights();
+  }
+
+  private onBoxSelectKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && this.boxSelectMode) {
+      this.selectedNodes.clear();
+      this.updateNodeHighlights();
+      this.boxSelectStart = null;
+      this.boxSelectRectEl?.attr('display', 'none');
+      this.dismissContextMenu();
+    }
+  }
+
+  private updateNodeHighlights(): void {
+    const selFill = this.darkMode ? 'rgba(100,180,255,0.22)' : 'rgba(0,94,162,0.18)';
+    const selStroke = this.darkMode ? '#6ab4ff' : '#005ea2';
+    this.g.selectAll<SVGCircleElement, LayoutNode>('circle.node-target')
+      .attr('fill', (d) => this.selectedNodes.has(d.node) ? selFill : 'transparent')
+      .attr('stroke', (d) => this.selectedNodes.has(d.node) ? selStroke : 'transparent');
+  }
+
+  private showBulkContextMenu(x: number, y: number): void {
+    this.dismissContextMenu();
+    const count = this.selectedNodes.size;
+    if (count === 0) return;
+
+    const menu = document.createElement('div');
+    menu.className = 'tree-context-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+
+    const item = document.createElement('div');
+    item.className = 'tree-context-menu-item tree-context-menu-item--danger';
+    item.textContent = `Delete ${count} selected node${count === 1 ? '' : 's'}`;
+    item.addEventListener('click', () => {
+      this.dismissContextMenu();
+      this.executeBulkDelete();
+    });
+    menu.appendChild(item);
+
+    document.body.appendChild(menu);
+    this.contextMenu = menu;
+
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) menu.style.left = (x - rect.width) + 'px';
+      if (rect.bottom > window.innerHeight) menu.style.top = (y - rect.height) + 'px';
+    });
+  }
+
+  private executeBulkDelete(): void {
+    if (!this.root || !this.onBulkDelete || this.selectedNodes.size === 0) return;
+    const targets = [...this.selectedNodes];
+    this.selectedNodes.clear();
+    const newRoot = pruneNodes(this.root, targets);
+    this.onBulkDelete(newRoot);
+  }
+
   destroy(): void {
     this.dismissContextMenu();
     this.hideTooltip();
     document.removeEventListener('click', this.dismissContextMenuBound);
+    this.svg.node()?.removeEventListener('mousedown', this.onSvgMouseDownBound, true);
+    window.removeEventListener('mousemove', this.onWindowMouseMoveBound);
+    window.removeEventListener('mouseup', this.onWindowMouseUpBound);
+    document.removeEventListener('keydown', this.onKeyDownBound);
     d3.select(this.container).selectAll('*').remove();
   }
 }

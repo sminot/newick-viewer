@@ -369,6 +369,17 @@ export function pruneNode(root: TreeNode, target: TreeNode): TreeNode | null {
   return root;
 }
 
+/** Remove multiple nodes from a tree sequentially. Safely skips the root and already-pruned nodes. */
+export function pruneNodes(root: TreeNode, targets: TreeNode[]): TreeNode {
+  let current: TreeNode = root;
+  for (const target of targets) {
+    if (target === current) continue;
+    const result = pruneNode(current, target);
+    if (result) current = result;
+  }
+  return current;
+}
+
 /** Replace `oldNode` with `newNode` in the tree rooted at `root` */
 function replaceInParent(root: TreeNode, oldNode: TreeNode, newNode: TreeNode): void {
   function walk(parent: TreeNode): boolean {

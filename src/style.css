@@ -649,6 +649,15 @@ html, body {
   color: var(--primary-dark);
 }
 
+.tree-context-menu-item--danger {
+  color: var(--error-red, #b50909);
+}
+
+.tree-context-menu-item--danger:hover {
+  background: #fff3f3;
+  color: var(--error-red, #b50909);
+}
+
 /* Tip tooltip */
 .tip-tooltip {
   position: fixed;
@@ -1120,6 +1129,15 @@ body.dark-mode .tree-context-menu-item {
 body.dark-mode .tree-context-menu-item:hover {
   background: var(--primary-light);
   color: var(--primary-dark);
+}
+
+body.dark-mode .tree-context-menu-item--danger {
+  color: #ff8080;
+}
+
+body.dark-mode .tree-context-menu-item--danger:hover {
+  background: #3a1010;
+  color: #ff8080;
 }
 
 body.dark-mode .tip-tooltip {
