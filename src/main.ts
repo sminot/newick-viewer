@@ -183,6 +183,18 @@ function initEmbedMode(): void {
   openBtn.href = getShareableURL(state);
   openBtn.textContent = '\u2197'; // ↗
   viewer.appendChild(openBtn);
+
+  // Re-render when the iframe is resized or becomes visible after being hidden.
+  // Without this, getBBox() returns zeros in Firefox on hidden iframes, producing
+  // a misplaced legend with a missing border until the viewer gets non-zero dimensions.
+  let resizeTimer: ReturnType<typeof setTimeout>;
+  const ro = new ResizeObserver(() => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (state.newick1) renderTree();
+    }, 150);
+  });
+  ro.observe(viewer);
 }
 
 function init(): void {
